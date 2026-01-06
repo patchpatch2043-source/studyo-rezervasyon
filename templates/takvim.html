@@ -760,7 +760,7 @@
             let ilkGecerliTarih = null;
             
             for (let gun = new Date(ilkGun); gun <= sonGun; gun.setDate(gun.getDate() + 1)) {
-                const tarihStr = gun.toISOString().split('T')[0];
+                const tarihStr = `${gun.getFullYear()}-${String(gun.getMonth() + 1).padStart(2, '0')}-${String(gun.getDate()).padStart(2, '0')}`;
                 const gunKopya = new Date(gun);
                 gunKopya.setHours(0,0,0,0);
                 
