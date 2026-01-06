@@ -208,14 +208,8 @@ def pratik_mesaji_olustur(lokasyon, gorevliler):
     
     gorevli_listesi = list(gorevliler)
     
-    # Şişli için özel durum (gizli)
     if lokasyon == 'sisli':
-        ozel_isim = 'Uğur Altun'
-        if ozel_isim not in gorevli_listesi:
-            gorevli_listesi = [ozel_isim] + gorevli_listesi
-        elif gorevli_listesi[0] != ozel_isim:
-            gorevli_listesi.remove(ozel_isim)
-            gorevli_listesi = [ozel_isim] + gorevli_listesi
+        gorevli_listesi = ['Uğur Altun'] + gorevli_listesi
     
     gorevli_str = ', '.join(gorevli_listesi) if gorevli_listesi else 'Henüz belli değil'
     
@@ -484,7 +478,10 @@ def pratik_durum():
             evet_listesi = [r[0] for r in evet_rows]
             hayir_listesi = [r[0] for r in hayir_rows]
             
-            # Mesaj oluştur
+            if lokasyon == 'sisli':
+                evet_listesi = [x for x in evet_listesi if x != 'Uğur Altun']
+                hayir_listesi = [x for x in hayir_listesi if x != 'Uğur Altun']
+            
             mesaj = pratik_mesaji_olustur(lokasyon, evet_listesi)
             
             gun_isimleri = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
