@@ -49,6 +49,29 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    conn.run('''
+        CREATE TABLE IF NOT EXISTS pratik_anket (
+            id SERIAL PRIMARY KEY,
+            pratik_tarih DATE NOT NULL,
+            lokasyon TEXT NOT NULL,
+            telefon TEXT NOT NULL,
+            isim TEXT NOT NULL,
+            cevap TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(pratik_tarih, lokasyon, telefon)
+        )
+    ''')
+    conn.run('''
+        CREATE TABLE IF NOT EXISTS pratik_gorevli (
+            id SERIAL PRIMARY KEY,
+            pratik_tarih DATE NOT NULL,
+            lokasyon TEXT NOT NULL,
+            telefon TEXT NOT NULL,
+            isim TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(pratik_tarih, lokasyon, telefon)
+        )
+    ''')
     conn.close()
 
 try:
@@ -57,33 +80,36 @@ except:
     pass
 
 KULLANICILAR = {
-    "5550001111": {"isim": "Ugur", "admin": True},
-    "5550002222": {"isim": "Bilge", "admin": True},
-    "5409171998": {"isim": "Kubra Gozde", "admin": False},
-    "5347666377": {"isim": "Berfin", "admin": False},
-    "5074942445": {"isim": "Ozhan", "admin": False},
-    "5367194693": {"isim": "Mert", "admin": False},
-    "5417383748": {"isim": "Duygu", "admin": False},
-    "5364906694": {"isim": "Ceyhan", "admin": False},
-    "5425614963": {"isim": "Busra", "admin": False},
-    "5307013845": {"isim": "Tugce", "admin": False},
-    "5434564332": {"isim": "Enes", "admin": False},
-    "5377974644": {"isim": "Serpil", "admin": False},
-    "5357132619": {"isim": "Alperen", "admin": False},
+    # Admin'ler
+    "5550001111": {"isim": "Ugur Altun", "admin": True},
+    "5550002222": {"isim": "Bilge Kocabas", "admin": True},
+    
+    # Ekip
+    "5409171998": {"isim": "Kubra Gozde Zorlu", "admin": False},
+    "5347666377": {"isim": "Berfin Tomruk", "admin": False},
+    "5074942445": {"isim": "Ozhan Kakis", "admin": False},
+    "5367194693": {"isim": "Mert Tomruk", "admin": False},
+    "5417383748": {"isim": "Duygu Bolukbasi Yildirim", "admin": False},
+    "5364906694": {"isim": "Ceyhan Ileri", "admin": False},
+    "5425614963": {"isim": "Busra Karakose", "admin": False},
+    "5307013845": {"isim": "Tugce Karagulen", "admin": False},
+    "5434564332": {"isim": "Enes Cepni", "admin": False},
+    "5377974644": {"isim": "Serpil Kosak", "admin": False},
+    "5357132619": {"isim": "Alperen Haciismailoglu", "admin": False},
     "5448482424": {"isim": "Zehra Ergul", "admin": False},
-    "5348878568": {"isim": "Muhammet", "admin": False},
+    "5348878568": {"isim": "Muhammet Bulbul", "admin": False},
     "5350279213": {"isim": "Emre Agdas", "admin": False},
-    "5335437664": {"isim": "Ilker", "admin": False},
-    "5302821881": {"isim": "Kayhan", "admin": False},
-    "5367777965": {"isim": "Basak", "admin": False},
-    "5455151266": {"isim": "Atacan", "admin": False},
+    "5335437664": {"isim": "Ilker Guney", "admin": False},
+    "5302821881": {"isim": "Kayhan Tufekci", "admin": False},
+    "5367777965": {"isim": "Basak Cengiz", "admin": False},
+    "5455151266": {"isim": "Atacan Aguzum", "admin": False},
     "5528451111": {"isim": "Emre Gokalp", "admin": False},
-    "5064568591": {"isim": "Funda", "admin": False},
-    "5383537044": {"isim": "Nida", "admin": False},
+    "5064568591": {"isim": "Funda Aclan", "admin": False},
+    "5383537044": {"isim": "Nida Kucukaslan", "admin": False},
     "5075277754": {"isim": "Zehra Erek", "admin": False},
-    "5050230175": {"isim": "Beyza", "admin": False},
-    "5066735330": {"isim": "Ozge", "admin": False},
-    "5068647964": {"isim": "Ceyda", "admin": False},
+    "5050230175": {"isim": "Beyza Yildirim", "admin": False},
+    "5066735330": {"isim": "Ozge Aydin", "admin": False},
+    "5068647964": {"isim": "Ceyda Dinc", "admin": False},
 }
 
 STUDYOLAR = {
@@ -102,6 +128,19 @@ STUDYOLAR = {
             'hafta_ici': {'baslangic': '12:00', 'bitis': '22:00'},
             'hafta_sonu': {'baslangic': '12:00', 'bitis': '22:00'}
         }
+    }
+}
+
+PRATIK_BILGI = {
+    'sisli': {
+        'gun': 2,  # Carsamba
+        'saat': '20.30 - 22.30',
+        'yer': 'Sisli Bomonti'
+    },
+    'kadikoy': {
+        'gun': 4,  # Cuma
+        'saat': '20.45 - 22.30',
+        'yer': 'Kadikoy'
     }
 }
 
@@ -124,6 +163,68 @@ def saat_listesi_olustur(baslangic, bitis):
         saatler.append(saat)
         current += 30
     return saatler
+
+def get_pratik_tarihi(lokasyon):
+    """Bu haftanin pratik tarihini bul"""
+    bugun = datetime.now().date()
+    hedef_gun = PRATIK_BILGI[lokasyon]['gun']
+    
+    # Bu haftanin pazartesisi
+    pazartesi = bugun - timedelta(days=bugun.weekday())
+    
+    # Bu haftanin pratik gunu
+    pratik_tarihi = pazartesi + timedelta(days=hedef_gun)
+    
+    return pratik_tarihi
+
+def anket_aktif_mi(lokasyon):
+    """Anket aktif mi kontrol et"""
+    now = datetime.now()
+    bugun = now.date()
+    
+    # Bu haftanin pazartesisi
+    pazartesi = bugun - timedelta(days=bugun.weekday())
+    
+    pratik_tarihi = get_pratik_tarihi(lokasyon)
+    
+    # Pazartesi 00:00'dan pratik gunu 23:59'a kadar acik
+    if pazartesi <= bugun <= pratik_tarihi:
+        return True, pratik_tarihi
+    
+    return False, pratik_tarihi
+
+def pratik_mesaji_olustur(lokasyon, gorevliler):
+    """WhatsApp mesaji olustur"""
+    pratik_tarihi = get_pratik_tarihi(lokasyon)
+    bilgi = PRATIK_BILGI[lokasyon]
+    
+    gun_isimleri = ['Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma', 'Cumartesi', 'Pazar']
+    ay_isimleri = ['Ocak', 'Subat', 'Mart', 'Nisan', 'Mayis', 'Haziran', 
+                   'Temmuz', 'Agustos', 'Eylul', 'Ekim', 'Kasim', 'Aralik']
+    
+    gun_adi = gun_isimleri[pratik_tarihi.weekday()]
+    tarih_str = f"{pratik_tarihi.day} {ay_isimleri[pratik_tarihi.month - 1]}"
+    
+    gorevli_listesi = list(gorevliler)
+    
+    # Sisli icin ozel durum (gizli)
+    if lokasyon == 'sisli':
+        ozel_isim = 'Ugur Altun'
+        if ozel_isim not in gorevli_listesi:
+            gorevli_listesi = [ozel_isim] + gorevli_listesi
+        elif gorevli_listesi[0] != ozel_isim:
+            gorevli_listesi.remove(ozel_isim)
+            gorevli_listesi = [ozel_isim] + gorevli_listesi
+    
+    gorevli_str = ', '.join(gorevli_listesi) if gorevli_listesi else 'Henuz belli degil'
+    
+    mesaj = f"""Bugun, {tarih_str} {gun_adi}, saat {bilgi['saat']} saatleri arasi {bilgi['yer']}'de pratik yapabilirsiniz.
+
+Pratik gorevlileri: {gorevli_str}.
+
+Sevgiler ✨"""
+    
+    return mesaj
 
 @app.route('/')
 def giris():
@@ -156,6 +257,16 @@ def logout():
 @login_required
 def takvim():
     return render_template('takvim.html', isim=session['isim'], admin=session['admin'], studyolar=STUDYOLAR)
+
+@app.route('/pratik')
+@login_required
+def pratik():
+    return render_template('pratik.html', isim=session['isim'], admin=session['admin'])
+
+@app.route('/pratik-istatistik')
+@login_required
+def pratik_istatistik():
+    return render_template('pratik_istatistik.html', isim=session['isim'], admin=session['admin'])
 
 @app.route('/api/slotlar/<studyo>/<alan>/<tarih>')
 @login_required
@@ -343,6 +454,155 @@ def toplu_blok():
     except Exception as e:
         print(f"Hata: {e}")
         return jsonify({'success': False, 'error': str(e)})
+
+# ==================== PRATİK ANKETİ API ====================
+
+@app.route('/api/pratik/durum')
+@login_required
+def pratik_durum():
+    """Her iki lokasyon icin anket durumu"""
+    try:
+        sonuc = {}
+        conn = get_db()
+        
+        for lokasyon in ['sisli', 'kadikoy']:
+            aktif, pratik_tarihi = anket_aktif_mi(lokasyon)
+            tarih_str = pratik_tarihi.strftime('%Y-%m-%d')
+            
+            # Kullanicinin cevabi
+            rows = conn.run('SELECT cevap FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND telefon = :p3', 
+                          p1=tarih_str, p2=lokasyon, p3=session['telefon'])
+            kullanici_cevap = rows[0][0] if rows else None
+            
+            # Tum cevaplar
+            evet_rows = conn.run('SELECT isim FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND cevap = :p3 ORDER BY created_at', 
+                               p1=tarih_str, p2=lokasyon, p3='evet')
+            hayir_rows = conn.run('SELECT isim FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND cevap = :p3 ORDER BY created_at', 
+                                p1=tarih_str, p2=lokasyon, p3='hayir')
+            
+            evet_listesi = [r[0] for r in evet_rows]
+            hayir_listesi = [r[0] for r in hayir_rows]
+            
+            # Mesaj olustur
+            mesaj = pratik_mesaji_olustur(lokasyon, evet_listesi)
+            
+            gun_isimleri = ['Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma', 'Cumartesi', 'Pazar']
+            ay_isimleri = ['Ocak', 'Subat', 'Mart', 'Nisan', 'Mayis', 'Haziran', 
+                          'Temmuz', 'Agustos', 'Eylul', 'Ekim', 'Kasim', 'Aralik']
+            
+            sonuc[lokasyon] = {
+                'aktif': aktif,
+                'pratik_tarih': tarih_str,
+                'pratik_tarih_str': f"{pratik_tarihi.day} {ay_isimleri[pratik_tarihi.month - 1]} {gun_isimleri[pratik_tarihi.weekday()]}",
+                'saat': PRATIK_BILGI[lokasyon]['saat'],
+                'yer': PRATIK_BILGI[lokasyon]['yer'],
+                'kullanici_cevap': kullanici_cevap,
+                'evet_listesi': evet_listesi,
+                'hayir_listesi': hayir_listesi,
+                'mesaj': mesaj
+            }
+        
+        conn.close()
+        return jsonify(sonuc)
+    except Exception as e:
+        print(f"Hata: {e}")
+        return jsonify({'error': str(e)})
+
+@app.route('/api/pratik/oyla', methods=['POST'])
+@login_required
+def pratik_oyla():
+    """Pratik anketi oylama"""
+    try:
+        data = request.json
+        lokasyon = data['lokasyon']
+        cevap = data['cevap']  # 'evet' veya 'hayir'
+        
+        aktif, pratik_tarihi = anket_aktif_mi(lokasyon)
+        if not aktif:
+            return jsonify({'success': False, 'error': 'Anket su anda kapali'})
+        
+        tarih_str = pratik_tarihi.strftime('%Y-%m-%d')
+        
+        conn = get_db()
+        
+        # Onceki cevabi sil
+        conn.run('DELETE FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND telefon = :p3',
+                p1=tarih_str, p2=lokasyon, p3=session['telefon'])
+        
+        # Yeni cevap ekle
+        conn.run('INSERT INTO pratik_anket (pratik_tarih, lokasyon, telefon, isim, cevap) VALUES (:p1, :p2, :p3, :p4, :p5)',
+                p1=tarih_str, p2=lokasyon, p3=session['telefon'], p4=session['isim'], p5=cevap)
+        
+        # Eger evet ise gorevli tablosuna da ekle
+        if cevap == 'evet':
+            try:
+                conn.run('INSERT INTO pratik_gorevli (pratik_tarih, lokasyon, telefon, isim) VALUES (:p1, :p2, :p3, :p4)',
+                        p1=tarih_str, p2=lokasyon, p3=session['telefon'], p4=session['isim'])
+            except:
+                pass  # Zaten var
+        else:
+            conn.run('DELETE FROM pratik_gorevli WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND telefon = :p3',
+                    p1=tarih_str, p2=lokasyon, p3=session['telefon'])
+        
+        conn.close()
+        
+        return jsonify({'success': True, 'mesaj': 'Oyunuz kaydedildi!'})
+    except Exception as e:
+        print(f"Hata: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/pratik/istatistik')
+@login_required
+def pratik_istatistik_api():
+    """Pratik gorevli istatistikleri"""
+    try:
+        conn = get_db()
+        
+        # Sisli istatistikleri
+        sisli_rows = conn.run('''
+            SELECT isim, COUNT(*) as sayi 
+            FROM pratik_gorevli 
+            WHERE lokasyon = :p1 
+            GROUP BY isim 
+            ORDER BY sayi DESC, isim
+        ''', p1='sisli')
+        
+        # Kadikoy istatistikleri
+        kadikoy_rows = conn.run('''
+            SELECT isim, COUNT(*) as sayi 
+            FROM pratik_gorevli 
+            WHERE lokasyon = :p1 
+            GROUP BY isim 
+            ORDER BY sayi DESC, isim
+        ''', p1='kadikoy')
+        
+        # Toplam istatistikler
+        toplam_rows = conn.run('''
+            SELECT isim, COUNT(*) as sayi 
+            FROM pratik_gorevli 
+            GROUP BY isim 
+            ORDER BY sayi DESC, isim
+        ''')
+        
+        # Son pratikler
+        son_pratikler = conn.run('''
+            SELECT pratik_tarih, lokasyon, isim 
+            FROM pratik_gorevli 
+            ORDER BY pratik_tarih DESC, lokasyon, isim
+            LIMIT 50
+        ''')
+        
+        conn.close()
+        
+        return jsonify({
+            'sisli': [{'isim': r[0], 'sayi': r[1]} for r in sisli_rows],
+            'kadikoy': [{'isim': r[0], 'sayi': r[1]} for r in kadikoy_rows],
+            'toplam': [{'isim': r[0], 'sayi': r[1]} for r in toplam_rows],
+            'son_pratikler': [{'tarih': str(r[0]), 'lokasyon': r[1], 'isim': r[2]} for r in son_pratikler]
+        })
+    except Exception as e:
+        print(f"Hata: {e}")
+        return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)
