@@ -173,7 +173,7 @@ def get_slotlar(studyo, alan, tarih):
         saatler = saat_listesi_olustur(saat_bilgi['baslangic'], saat_bilgi['bitis'])
         
         conn = get_db()
-        rows = conn.run('SELECT saat, rezerve_eden, telefon, bloklu FROM rezervasyonlar WHERE studyo = :s AND alan = :a AND tarih = :t', s=studyo, a=alan, t=tarih)
+        rows = conn.run('SELECT saat, rezerve_eden, telefon, bloklu FROM rezervasyonlar WHERE studyo = :studyo AND alan = :alan AND tarih = :tarih', studyo=studyo, alan=alan, tarih=tarih)
         conn.close()
         
         rezervasyonlar = {}
@@ -213,14 +213,16 @@ def rezerve():
         saat = data['saat']
         
         conn = get_db()
-        rows = conn.run('SELECT * FROM rezervasyonlar WHERE studyo = :s AND alan = :a AND tarih = :t AND saat = :sa', s=studyo, a=alan, t=tarih, sa=saat)
+        rows = conn.run('SELECT id FROM rezervasyonlar WHERE studyo = :studyo AND alan = :alan AND tarih = :tarih AND saat = :saat', studyo=studyo, alan=alan, tarih=tarih, saat=saat)
         
         if rows:
             conn.close()
             return jsonify({'success': False, 'error': 'Bu slot zaten dolu'})
         
-        conn.run('INSERT INTO rezervasyonlar (studyo, alan, tarih, saat, rezerve_eden, telefon) VALUES (:s, :a, :t, :sa, :r, :te)', s=studyo, a=alan, t=tarih, sa=saat, r=session['isim'], te=session['telefon'])
-        conn.run('INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (:i, :is, :s, :a, :t, :sa)', i=session['isim'], is_='rezerve', s=STUDYOLAR[studyo]['isim'], a=alan, t=tarih, sa=saat)
+        conn.run('INSERT INTO rezervasyonlar (studyo, alan, tarih, saat, rezerve_eden, telefon) VALUES (:studyo, :alan, :tarih, :saat, :kisi, :tel)', studyo=studyo, alan=alan, tarih=tarih, saat=saat, kisi=session['isim'], tel=session['telefon'])
+        
+        studyo_isim = STUDYOLAR[studyo]['isim']
+        conn.run('INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (:isim, :islem, :studyo, :alan, :tarih, :saat)', isim=session['isim'], islem='rezerve', studyo=studyo_isim, alan=alan, tarih=tarih, saat=saat)
         conn.close()
         
         return jsonify({'success': True, 'mesaj': 'Rezervasyon yapildi!'})
@@ -239,7 +241,7 @@ def iptal():
         saat = data['saat']
         
         conn = get_db()
-        rows = conn.run('SELECT rezerve_eden, telefon FROM rezervasyonlar WHERE studyo = :s AND alan = :a AND tarih = :t AND saat = :sa', s=studyo, a=alan, t=tarih, sa=saat)
+        rows = conn.run('SELECT rezerve_eden, telefon FROM rezervasyonlar WHERE studyo = :studyo AND alan = :alan AND tarih = :tarih AND saat = :saat', studyo=studyo, alan=alan, tarih=tarih, saat=saat)
         
         if not rows:
             conn.close()
@@ -250,8 +252,10 @@ def iptal():
             conn.close()
             return jsonify({'success': False, 'error': 'Bu rezervasyonu iptal edemezsiniz'})
         
-        conn.run('DELETE FROM rezervasyonlar WHERE studyo = :s AND alan = :a AND tarih = :t AND saat = :sa', s=studyo, a=alan, t=tarih, sa=saat)
-        conn.run('INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (:i, :is, :s, :a, :t, :sa)', i=session['isim'], is_='iptal', s=STUDYOLAR[studyo]['isim'], a=alan, t=tarih, sa=saat)
+        conn.run('DELETE FROM rezervasyonlar WHERE studyo = :studyo AND alan = :alan AND tarih = :tarih AND saat = :saat', studyo=studyo, alan=alan, tarih=tarih, saat=saat)
+        
+        studyo_isim = STUDYOLAR[studyo]['isim']
+        conn.run('INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (:isim, :islem, :studyo, :alan, :tarih, :saat)', isim=session['isim'], islem='iptal', studyo=studyo_isim, alan=alan, tarih=tarih, saat=saat)
         conn.close()
         
         return jsonify({'success': True, 'mesaj': 'Rezervasyon iptal edildi'})
@@ -306,11 +310,14 @@ def toplu_blok():
         saat_bas = data['saat_baslangic']
         saat_bit = data['saat_bitis']
         islem = data['islem']
+        
         gun_map = {'Pzt': 0, 'Sal': 1, 'Çar': 2, 'Car': 2, 'Per': 3, 'Cum': 4, 'Cmt': 5, 'Paz': 6}
-        if 'hepsi' in gunler:
+        
+        if 'hepsi' in gunler or 'Hepsi' in gunler:
             secili_gunler = [0, 1, 2, 3, 4, 5, 6]
         else:
             secili_gunler = [gun_map[g] for g in gunler if g in gun_map]
+        
         saatler = saat_listesi_olustur(saat_bas, saat_bit)
         
         conn = get_db()
@@ -323,9 +330,12 @@ def toplu_blok():
                 for saat in saatler:
                     tarih_str = tarih.strftime('%Y-%m-%d')
                     if islem == 'blokla':
-                        conn.run('INSERT INTO rezervasyonlar (studyo, alan, tarih, saat, bloklu) VALUES (:s, :a, :t, :sa, TRUE) ON CONFLICT (studyo, alan, tarih, saat) DO UPDATE SET bloklu = TRUE, rezerve_eden = NULL, telefon = NULL', s=studyo, a=alan, t=tarih_str, sa=saat)
+                        try:
+                            conn.run('INSERT INTO rezervasyonlar (studyo, alan, tarih, saat, bloklu) VALUES (:studyo, :alan, :tarih, :saat, TRUE)', studyo=studyo, alan=alan, tarih=tarih_str, saat=saat)
+                        except:
+                            conn.run('UPDATE rezervasyonlar SET bloklu = TRUE, rezerve_eden = NULL, telefon = NULL WHERE studyo = :studyo AND alan = :alan AND tarih = :tarih AND saat = :saat', studyo=studyo, alan=alan, tarih=tarih_str, saat=saat)
                     else:
-                        conn.run('DELETE FROM rezervasyonlar WHERE studyo = :s AND alan = :a AND tarih = :t AND saat = :sa AND bloklu = TRUE', s=studyo, a=alan, t=tarih_str, sa=saat)
+                        conn.run('DELETE FROM rezervasyonlar WHERE studyo = :studyo AND alan = :alan AND tarih = :tarih AND saat = :saat AND bloklu = TRUE', studyo=studyo, alan=alan, tarih=tarih_str, saat=saat)
                     islem_sayisi += 1
         
         conn.close()
