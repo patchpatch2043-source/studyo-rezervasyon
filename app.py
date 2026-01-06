@@ -32,6 +32,7 @@ KULLANICILAR = {
     "5302821881": {"isim": "Kayhan", "admin": False},
     "5367777965": {"isim": "Başak", "admin": False},
     "5455151266": {"isim": "Atacan", "admin": False},
+    "5352041658": {"isim": "Mustafa", "admin": False},
 }
 
 # ==================== STÜDYO AYARLARI ====================
