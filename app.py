@@ -1,13 +1,62 @@
-from flask import Flask, render_template, request, jsonify, session, redirect
-import sqlite3
-from datetime import datetime, timedelta
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from datetime import datetime, timedelta
+from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = 'swingplanet-gizli-anahtar-2026'
+app.secret_key = 'swing-planet-2024-secret-key'
 
-# ==================== KULLANICI LİSTESİ ====================
-# Buraya ekip arkadaşlarının numaralarını ekle
+# Veritabanı bağlantısı
+DATABASE_URL = os.environ.get('DATABASE_URL', '')
+
+def get_db():
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    return conn
+
+# Veritabanı tablolarını oluştur
+def init_db():
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS rezervasyonlar (
+            id SERIAL PRIMARY KEY,
+            studyo TEXT NOT NULL,
+            alan TEXT NOT NULL,
+            tarih DATE NOT NULL,
+            saat TEXT NOT NULL,
+            rezerve_eden TEXT,
+            telefon TEXT,
+            bloklu BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(studyo, alan, tarih, saat)
+        )
+    ''')
+    
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS aktiviteler (
+            id SERIAL PRIMARY KEY,
+            isim TEXT NOT NULL,
+            islem TEXT NOT NULL,
+            studyo TEXT NOT NULL,
+            alan TEXT NOT NULL,
+            tarih DATE NOT NULL,
+            saat TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+
+# Uygulama başlarken tabloları oluştur
+with app.app_context():
+    init_db()
+
+# Kullanıcı listesi
 KULLANICILAR = {
     # Admin'ler
     "5550001111": {"isim": "Ugur", "admin": True},
@@ -25,353 +74,366 @@ KULLANICILAR = {
     "5434564332": {"isim": "Enes", "admin": False},
     "5377974644": {"isim": "Serpil", "admin": False},
     "5357132619": {"isim": "Alperen", "admin": False},
-    "5448482424": {"isim": "Zehra", "admin": False},
+    "5448482424": {"isim": "Zehra Ergül", "admin": False},
     "5348878568": {"isim": "Muhammet", "admin": False},
-    "5350279213": {"isim": "Emre", "admin": False},
+    "5350279213": {"isim": "Emre Ağdaş", "admin": False},
     "5335437664": {"isim": "İlker", "admin": False},
     "5302821881": {"isim": "Kayhan", "admin": False},
     "5367777965": {"isim": "Başak", "admin": False},
     "5455151266": {"isim": "Atacan", "admin": False},
-    "5352041658": {"isim": "Mustafa", "admin": False},
+    "5528451111": {"isim": "Emre Gökalp", "admin": False},
+    "5064568591": {"isim": "Funda", "admin": False},
+    "5383537044": {"isim": "Nida", "admin": False},
+    "5075277754": {"isim": "Zehra Erek", "admin": False},
+    "5050230175": {"isim": "Beyza", "admin": False},
+    "5066735330": {"isim": "Özge", "admin": False},
+    "5068647964": {"isim": "Ceyda", "admin": False},
 }
 
-# ==================== STÜDYO AYARLARI ====================
+# Stüdyo bilgileri
 STUDYOLAR = {
-    "kadikoy": {
-        "isim": "Kadıköy",
-        "alanlar": ["Ana Salon"],
-        "hafta_ici_baslangic": 16,  # 16:00
-        "haftasonu_baslangic": 12,  # 12:00
-        "bitis": 22,  # 22:00
+    'kadikoy': {
+        'isim': 'Kadıköy',
+        'alanlar': ['Ana Salon'],
+        'saatler': {
+            'hafta_ici': {'baslangic': '16:00', 'bitis': '22:00'},
+            'hafta_sonu': {'baslangic': '12:00', 'bitis': '22:00'}
+        }
     },
-    "sisli": {
-        "isim": "Şişli",
-        "alanlar": ["Büyük Stüdyo", "Küçük Stüdyo", "Perdeli Alan"],
-        "hafta_ici_baslangic": 12,
-        "haftasonu_baslangic": 12,
-        "bitis": 22,
+    'sisli': {
+        'isim': 'Şişli',
+        'alanlar': ['Büyük Stüdyo', 'Küçük Stüdyo', 'Perdeli Alan'],
+        'saatler': {
+            'hafta_ici': {'baslangic': '12:00', 'bitis': '22:00'},
+            'hafta_sonu': {'baslangic': '12:00', 'bitis': '22:00'}
+        }
     }
 }
 
-# ==================== VERİTABANI ====================
-def get_db():
-    db = sqlite3.connect('rezervasyonlar.db')
-    db.row_factory = sqlite3.Row
-    return db
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'telefon' not in session:
+            return redirect(url_for('giris'))
+        return f(*args, **kwargs)
+    return decorated_function
 
-def init_db():
-    db = get_db()
-    db.execute('''
-        CREATE TABLE IF NOT EXISTS rezervasyonlar (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            studyo TEXT NOT NULL,
-            alan TEXT NOT NULL,
-            tarih TEXT NOT NULL,
-            saat TEXT NOT NULL,
-            rezerve_eden TEXT,
-            telefon TEXT,
-            bloklu INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(studyo, alan, tarih, saat)
-        )
-    ''')
-    db.execute('''
-        CREATE TABLE IF NOT EXISTS aktiviteler (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            isim TEXT NOT NULL,
-            islem TEXT NOT NULL,
-            studyo TEXT NOT NULL,
-            alan TEXT NOT NULL,
-            tarih TEXT NOT NULL,
-            saat TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    db.commit()
-    db.close()
-
-init_db()
-
-# ==================== YARDIMCI FONKSİYONLAR ====================
-def saat_slotlari_olustur(baslangic, bitis):
-    """30 dakikalık slotlar oluşturur"""
-    slotlar = []
-    saat = baslangic
-    dakika = 0
-    while saat < bitis:
-        slotlar.append(f"{saat:02d}:{dakika:02d}")
-        dakika += 30
-        if dakika >= 60:
-            dakika = 0
-            saat += 1
-    return slotlar
-
-def gun_slotlari_getir(studyo_key, tarih_str):
-    """Belirli bir gün için uygun slotları getirir"""
-    studyo = STUDYOLAR[studyo_key]
-    tarih = datetime.strptime(tarih_str, "%Y-%m-%d")
-    gun = tarih.weekday()  # 0=Pazartesi, 6=Pazar
+def saat_listesi_olustur(baslangic, bitis):
+    saatler = []
+    bas_saat, bas_dk = map(int, baslangic.split(':'))
+    bit_saat, bit_dk = map(int, bitis.split(':'))
     
-    if gun < 5:  # Hafta içi
-        baslangic = studyo["hafta_ici_baslangic"]
-    else:  # Haftasonu
-        baslangic = studyo["haftasonu_baslangic"]
+    current = bas_saat * 60 + bas_dk
+    end = bit_saat * 60 + bit_dk
     
-    return saat_slotlari_olustur(baslangic, studyo["bitis"])
+    while current < end:
+        saat = f"{current // 60:02d}:{current % 60:02d}"
+        saatler.append(saat)
+        current += 30
+    
+    return saatler
 
-def rezervasyon_getir(studyo, alan, tarih, saat):
-    db = get_db()
-    rez = db.execute(
-        'SELECT * FROM rezervasyonlar WHERE studyo=? AND alan=? AND tarih=? AND saat=?',
-        (studyo, alan, tarih, saat)
-    ).fetchone()
-    db.close()
-    return rez
-
-# ==================== ROTALAR ====================
 @app.route('/')
 def giris():
     if 'telefon' in session:
-        return redirect('/takvim')
+        return redirect(url_for('takvim'))
     return render_template('giris.html')
 
 @app.route('/login', methods=['POST'])
 def login():
-    telefon = request.form.get('telefon', '').replace(' ', '').replace('-', '')
-    # Başında 0 varsa kaldır
-    if telefon.startswith('0'):
+    telefon = request.form.get('telefon', '').strip()
+    telefon = telefon.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+    
+    if telefon.startswith('+90'):
+        telefon = telefon[3:]
+    elif telefon.startswith('0'):
         telefon = telefon[1:]
     
     if telefon in KULLANICILAR:
         session['telefon'] = telefon
         session['isim'] = KULLANICILAR[telefon]['isim']
         session['admin'] = KULLANICILAR[telefon]['admin']
-        return redirect('/takvim')
+        return redirect(url_for('takvim'))
     else:
-        return render_template('giris.html', hata="Bu numara kayıtlı değil!")
+        return render_template('giris.html', hata='Bu numara kayıtlı değil')
 
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect('/')
+    return redirect(url_for('giris'))
 
 @app.route('/takvim')
+@login_required
 def takvim():
-    if 'telefon' not in session:
-        return redirect('/')
-    
-    # Bugünden başlayarak 14 gün göster
-    bugun = datetime.now()
-    gunler = []
-    for i in range(14):
-        gun = bugun + timedelta(days=i)
-        gunler.append({
-            'tarih': gun.strftime('%Y-%m-%d'),
-            'gun_adi': ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'][gun.weekday()],
-            'gun_no': gun.day,
-            'ay': ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'][gun.month - 1]
-        })
-    
     return render_template('takvim.html', 
-                         gunler=gunler,
-                         studyolar=STUDYOLAR,
-                         isim=session['isim'],
-                         admin=session['admin'])
+                         isim=session['isim'], 
+                         admin=session['admin'],
+                         studyolar=STUDYOLAR)
 
 @app.route('/api/slotlar/<studyo>/<alan>/<tarih>')
-def slotlar_getir(studyo, alan, tarih):
-    if 'telefon' not in session:
-        return jsonify({'error': 'Yetkisiz'}), 401
-    
-    slotlar = gun_slotlari_getir(studyo, tarih)
-    
-    db = get_db()
-    rezervasyonlar = db.execute(
-        'SELECT * FROM rezervasyonlar WHERE studyo=? AND alan=? AND tarih=?',
-        (studyo, alan, tarih)
-    ).fetchall()
-    db.close()
-    
-    rez_dict = {r['saat']: dict(r) for r in rezervasyonlar}
-    
-    sonuc = []
-    for slot in slotlar:
-        if slot in rez_dict:
-            r = rez_dict[slot]
-            sonuc.append({
-                'saat': slot,
-                'durum': 'bloklu' if r['bloklu'] else 'dolu',
-                'kisi': r['rezerve_eden'] if not r['bloklu'] else None,
-                'kendi_mi': r['telefon'] == session['telefon']
-            })
+@login_required
+def get_slotlar(studyo, alan, tarih):
+    try:
+        tarih_obj = datetime.strptime(tarih, '%Y-%m-%d')
+        gun = tarih_obj.weekday()
+        
+        studyo_bilgi = STUDYOLAR.get(studyo)
+        if not studyo_bilgi:
+            return jsonify([])
+        
+        if gun < 5:
+            saat_bilgi = studyo_bilgi['saatler']['hafta_ici']
         else:
-            sonuc.append({
-                'saat': slot,
-                'durum': 'bos',
-                'kisi': None,
-                'kendi_mi': False
+            saat_bilgi = studyo_bilgi['saatler']['hafta_sonu']
+        
+        saatler = saat_listesi_olustur(saat_bilgi['baslangic'], saat_bilgi['bitis'])
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT saat, rezerve_eden, telefon, bloklu 
+            FROM rezervasyonlar 
+            WHERE studyo = %s AND alan = %s AND tarih = %s
+        ''', (studyo, alan, tarih))
+        
+        rezervasyonlar = {row['saat']: row for row in cur.fetchall()}
+        cur.close()
+        conn.close()
+        
+        slotlar = []
+        for saat in saatler:
+            rez = rezervasyonlar.get(saat)
+            if rez:
+                if rez['bloklu']:
+                    durum = 'bloklu'
+                    kisi = None
+                    kendi_mi = False
+                else:
+                    durum = 'dolu'
+                    kisi = rez['rezerve_eden']
+                    kendi_mi = (rez['telefon'] == session['telefon'])
+            else:
+                durum = 'bos'
+                kisi = None
+                kendi_mi = False
+            
+            slotlar.append({
+                'saat': saat,
+                'durum': durum,
+                'kisi': kisi,
+                'kendi_mi': kendi_mi
             })
-    
-    return jsonify(sonuc)
+        
+        return jsonify(slotlar)
+    except Exception as e:
+        print(f"Hata: {e}")
+        return jsonify([])
 
 @app.route('/api/rezerve', methods=['POST'])
-def rezerve_et():
-    if 'telefon' not in session:
-        return jsonify({'error': 'Yetkisiz'}), 401
-    
-    data = request.json
-    studyo = data['studyo']
-    alan = data['alan']
-    tarih = data['tarih']
-    saat = data['saat']
-    
-    # Zaten rezerve mi kontrol et
-    mevcut = rezervasyon_getir(studyo, alan, tarih, saat)
-    if mevcut:
-        return jsonify({'error': 'Bu slot zaten dolu!'}), 400
-    
-    db = get_db()
-    db.execute(
-        'INSERT INTO rezervasyonlar (studyo, alan, tarih, saat, rezerve_eden, telefon, bloklu) VALUES (?, ?, ?, ?, ?, ?, 0)',
-        (studyo, alan, tarih, saat, session['isim'], session['telefon'])
-    )
-    # Aktivite kaydet
-    db.execute(
-        'INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (?, ?, ?, ?, ?, ?)',
-        (session['isim'], 'rezerve', studyo, alan, tarih, saat)
-    )
-    db.commit()
-    db.close()
-    
-    return jsonify({'success': True, 'mesaj': f'{saat} rezerve edildi!'})
+@login_required
+def rezerve():
+    try:
+        data = request.json
+        studyo = data['studyo']
+        alan = data['alan']
+        tarih = data['tarih']
+        saat = data['saat']
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        cur.execute('''
+            SELECT * FROM rezervasyonlar 
+            WHERE studyo = %s AND alan = %s AND tarih = %s AND saat = %s
+        ''', (studyo, alan, tarih, saat))
+        
+        mevcut = cur.fetchone()
+        
+        if mevcut:
+            cur.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Bu slot zaten dolu'})
+        
+        cur.execute('''
+            INSERT INTO rezervasyonlar (studyo, alan, tarih, saat, rezerve_eden, telefon)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        ''', (studyo, alan, tarih, saat, session['isim'], session['telefon']))
+        
+        cur.execute('''
+            INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        ''', (session['isim'], 'rezerve', STUDYOLAR[studyo]['isim'], alan, tarih, saat))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'mesaj': 'Rezervasyon yapıldı!'})
+    except Exception as e:
+        print(f"Hata: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/iptal', methods=['POST'])
-def iptal_et():
-    if 'telefon' not in session:
-        return jsonify({'error': 'Yetkisiz'}), 401
-    
-    data = request.json
-    studyo = data['studyo']
-    alan = data['alan']
-    tarih = data['tarih']
-    saat = data['saat']
-    
-    mevcut = rezervasyon_getir(studyo, alan, tarih, saat)
-    if not mevcut:
-        return jsonify({'error': 'Rezervasyon bulunamadı'}), 400
-    
-    # Sadece kendi rezervasyonunu veya admin ise iptal edebilir
-    if mevcut['telefon'] != session['telefon'] and not session['admin']:
-        return jsonify({'error': 'Bu rezervasyonu iptal edemezsiniz'}), 403
-    
-    db = get_db()
-    db.execute(
-        'DELETE FROM rezervasyonlar WHERE studyo=? AND alan=? AND tarih=? AND saat=?',
-        (studyo, alan, tarih, saat)
-    )
-    # Aktivite kaydet
-    db.execute(
-        'INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (?, ?, ?, ?, ?, ?)',
-        (session['isim'], 'iptal', studyo, alan, tarih, saat)
-    )
-    db.commit()
-    db.close()
-    
-    return jsonify({'success': True, 'mesaj': 'Rezervasyon iptal edildi'})
-
-# ==================== ADMİN İŞLEMLERİ ====================
+@login_required
+def iptal():
+    try:
+        data = request.json
+        studyo = data['studyo']
+        alan = data['alan']
+        tarih = data['tarih']
+        saat = data['saat']
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        cur.execute('''
+            SELECT * FROM rezervasyonlar 
+            WHERE studyo = %s AND alan = %s AND tarih = %s AND saat = %s
+        ''', (studyo, alan, tarih, saat))
+        
+        mevcut = cur.fetchone()
+        
+        if not mevcut:
+            cur.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Rezervasyon bulunamadı'})
+        
+        if mevcut['telefon'] != session['telefon'] and not session.get('admin'):
+            cur.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Bu rezervasyonu iptal edemezsiniz'})
+        
+        cur.execute('''
+            DELETE FROM rezervasyonlar 
+            WHERE studyo = %s AND alan = %s AND tarih = %s AND saat = %s
+        ''', (studyo, alan, tarih, saat))
+        
+        cur.execute('''
+            INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        ''', (session['isim'], 'iptal', STUDYOLAR[studyo]['isim'], alan, tarih, saat))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'mesaj': 'Rezervasyon iptal edildi'})
+    except Exception as e:
+        print(f"Hata: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/aktiviteler')
-def aktiviteler_getir():
-    if 'telefon' not in session:
-        return jsonify({'error': 'Yetkisiz'}), 401
-    
-    db = get_db()
-    aktiviteler = db.execute(
-        'SELECT * FROM aktiviteler ORDER BY created_at DESC LIMIT 30'
-    ).fetchall()
-    db.close()
-    
-    sonuc = []
-    for a in aktiviteler:
-        # Zaman farkını hesapla
-        created = datetime.strptime(a['created_at'], '%Y-%m-%d %H:%M:%S')
-        simdi = datetime.now()
-        fark = simdi - created
+@login_required
+def get_aktiviteler():
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT * FROM aktiviteler 
+            ORDER BY created_at DESC 
+            LIMIT 30
+        ''')
         
-        if fark.total_seconds() < 60:
-            zaman = "Az önce"
-        elif fark.total_seconds() < 3600:
-            zaman = f"{int(fark.total_seconds() // 60)} dk önce"
-        elif fark.total_seconds() < 86400:
-            zaman = f"{int(fark.total_seconds() // 3600)} saat önce"
-        else:
-            zaman = f"{int(fark.days)} gün önce"
+        aktiviteler = []
+        for row in cur.fetchall():
+            created = row['created_at']
+            now = datetime.now()
+            diff = now - created
+            
+            if diff.seconds < 60:
+                zaman = 'Az önce'
+            elif diff.seconds < 3600:
+                zaman = f'{diff.seconds // 60} dakika önce'
+            elif diff.seconds < 86400:
+                zaman = f'{diff.seconds // 3600} saat önce'
+            else:
+                zaman = f'{diff.days} gün önce'
+            
+            aktiviteler.append({
+                'isim': row['isim'],
+                'islem': row['islem'],
+                'studyo': row['studyo'],
+                'alan': row['alan'],
+                'tarih': row['tarih'].strftime('%Y-%m-%d'),
+                'saat': row['saat'],
+                'zaman': zaman
+            })
         
-        sonuc.append({
-            'isim': a['isim'],
-            'islem': a['islem'],
-            'studyo': STUDYOLAR[a['studyo']]['isim'],
-            'alan': a['alan'],
-            'tarih': a['tarih'],
-            'saat': a['saat'],
-            'zaman': zaman
-        })
-    
-    return jsonify(sonuc)
+        cur.close()
+        conn.close()
+        return jsonify(aktiviteler)
+    except Exception as e:
+        print(f"Hata: {e}")
+        return jsonify([])
 
 @app.route('/api/admin/toplu-blok', methods=['POST'])
+@login_required
 def toplu_blok():
-    if 'telefon' not in session or not session['admin']:
-        return jsonify({'error': 'Yetkisiz'}), 403
+    if not session.get('admin'):
+        return jsonify({'success': False, 'error': 'Yetkiniz yok'})
     
-    data = request.json
-    studyo = data['studyo']
-    alan = data['alan']
-    gunler = data['gunler']  # ['Pzt', 'Sal', ...] veya ['hepsi']
-    saat_baslangic = data['saat_baslangic']  # "12:00"
-    saat_bitis = data['saat_bitis']  # "17:00"
-    islem = data['islem']  # 'blokla' veya 'ac'
-    
-    gun_map = {'Pzt': 0, 'Sal': 1, 'Çar': 2, 'Per': 3, 'Cum': 4, 'Cmt': 5, 'Paz': 6}
-    
-    # Gelecek 14 gün için işlem yap
-    bugun = datetime.now()
-    db = get_db()
-    islem_sayisi = 0
-    
-    for i in range(14):
-        gun = bugun + timedelta(days=i)
-        gun_adi = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'][gun.weekday()]
+    try:
+        data = request.json
+        studyo = data['studyo']
+        alan = data['alan']
+        gunler = data['gunler']
+        saat_bas = data['saat_baslangic']
+        saat_bit = data['saat_bitis']
+        islem = data['islem']
         
-        if 'hepsi' not in gunler and gun_adi not in gunler:
-            continue
+        gun_map = {'Pzt': 0, 'Sal': 1, 'Çar': 2, 'Per': 3, 'Cum': 4, 'Cmt': 5, 'Paz': 6}
         
-        tarih_str = gun.strftime('%Y-%m-%d')
-        slotlar = gun_slotlari_getir(studyo, tarih_str)
+        if 'hepsi' in gunler:
+            secili_gunler = [0, 1, 2, 3, 4, 5, 6]
+        else:
+            secili_gunler = [gun_map[g] for g in gunler if g in gun_map]
         
-        for slot in slotlar:
-            if slot >= saat_baslangic and slot < saat_bitis:
-                if islem == 'blokla':
-                    try:
-                        db.execute(
-                            'INSERT OR REPLACE INTO rezervasyonlar (studyo, alan, tarih, saat, bloklu) VALUES (?, ?, ?, ?, 1)',
-                            (studyo, alan, tarih_str, slot)
-                        )
-                        islem_sayisi += 1
-                    except:
-                        pass
-                else:  # aç
-                    db.execute(
-                        'DELETE FROM rezervasyonlar WHERE studyo=? AND alan=? AND tarih=? AND saat=? AND bloklu=1',
-                        (studyo, alan, tarih_str, slot)
-                    )
+        saatler = saat_listesi_olustur(saat_bas, saat_bit)
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        bugun = datetime.now().date()
+        islem_sayisi = 0
+        
+        for i in range(90):
+            tarih = bugun + timedelta(days=i)
+            if tarih.weekday() in secili_gunler:
+                for saat in saatler:
+                    tarih_str = tarih.strftime('%Y-%m-%d')
+                    if islem == 'blokla':
+                        cur.execute('''
+                            INSERT INTO rezervasyonlar (studyo, alan, tarih, saat, bloklu)
+                            VALUES (%s, %s, %s, %s, TRUE)
+                            ON CONFLICT (studyo, alan, tarih, saat) 
+                            DO UPDATE SET bloklu = TRUE, rezerve_eden = NULL, telefon = NULL
+                        ''', (studyo, alan, tarih_str, saat))
+                    else:
+                        cur.execute('''
+                            DELETE FROM rezervasyonlar 
+                            WHERE studyo = %s AND alan = %s AND tarih = %s AND saat = %s AND bloklu = TRUE
+                        ''', (studyo, alan, tarih_str, saat))
                     islem_sayisi += 1
-    
-    db.commit()
-    db.close()
-    
-    return jsonify({'success': True, 'mesaj': f'{islem_sayisi} slot {"bloklandı" if islem == "blokla" else "açıldı"}'})
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'mesaj': f'{islem_sayisi} slot güncellendi'})
+    except Exception as e:
+        print(f"Hata: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
+```
+
+---
+
+## 📋 Şimdi Sırayla Yap:
+
+1. GitHub → `requirements.txt` → şununla değiştir:
+```
+flask==3.0.0
+gunicorn==21.2.0
+psycopg2-binary==2.9.9
