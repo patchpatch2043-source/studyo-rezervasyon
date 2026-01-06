@@ -10,7 +10,7 @@ app.secret_key = 'swingplanet-gizli-anahtar-2026'
 # Buraya ekip arkadaşlarının numaralarını ekle
 KULLANICILAR = {
     "5550001111": {"isim": "Ugur", "admin": True},
-    "5550002222": {"isim": "Admin2", "admin": True},
+    "5550002222": {"isim": "Bilge", "admin": True},
     "5551111111": {"isim": "Ayşe", "admin": False},
     "5552222222": {"isim": "Mehmet", "admin": False},
     "5553333333": {"isim": "Zeynep", "admin": False},
