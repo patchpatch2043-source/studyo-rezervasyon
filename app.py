@@ -9,13 +9,21 @@ app.secret_key = 'swingplanet-gizli-anahtar-2026'
 # ==================== KULLANICI LİSTESİ ====================
 # Buraya ekip arkadaşlarının numaralarını ekle
 KULLANICILAR = {
+    # Admin'ler
     "5550001111": {"isim": "Ugur", "admin": True},
     "5550002222": {"isim": "Bilge", "admin": True},
-    "5551111111": {"isim": "Ayşe", "admin": False},
-    "5552222222": {"isim": "Mehmet", "admin": False},
-    "5553333333": {"isim": "Zeynep", "admin": False},
-    # Yeni kişi eklemek için:
-    # "5554444444": {"isim": "İsim", "admin": False},
+    
+    # Ekip
+    "5409171998": {"isim": "Kübra Gözde", "admin": False},
+    "5347666377": {"isim": "Berfin", "admin": False},
+    "5074942445": {"isim": "Özhan", "admin": False},
+    "5367194693": {"isim": "Mert", "admin": False},
+    "5417383748": {"isim": "Duygu", "admin": False},
+    "5364906694": {"isim": "Ceyhan", "admin": False},
+    "5425614963": {"isim": "Büşra", "admin": False},
+    "5307013845": {"isim": "Tuğçe", "admin": False},
+    "5434564332": {"isim": "Enes", "admin": False},
+    "5377974644": {"isim": "Serpil", "admin": False},
 }
 
 # ==================== STÜDYO AYARLARI ====================
