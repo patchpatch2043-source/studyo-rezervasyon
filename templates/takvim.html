@@ -67,7 +67,6 @@
             text-decoration: none;
         }
         
-        /* Ana Layout */
         .main-layout {
             display: flex;
             max-width: 1400px;
@@ -95,7 +94,6 @@
             }
         }
         
-        /* Stüdyo ve Alan Seçimi */
         .selector-row {
             display: flex;
             gap: 10px;
@@ -130,7 +128,6 @@
             border-color: #667eea;
         }
         
-        /* Ay Seçici */
         .month-selector {
             display: flex;
             align-items: center;
@@ -180,7 +177,6 @@
             font-weight: 500;
         }
         
-        /* Tarih Seçimi */
         .date-scroll {
             display: flex;
             gap: 10px;
@@ -231,7 +227,6 @@
             opacity: 0.7;
         }
         
-        /* Slot Grid */
         .slots-container {
             background: white;
             border-radius: 16px;
@@ -304,7 +299,6 @@
             font-size: 10px;
         }
         
-        /* Legend */
         .legend {
             display: flex;
             gap: 15px;
@@ -327,7 +321,6 @@
             border-radius: 4px;
         }
         
-        /* Aktivite Paneli */
         .aktivite-panel {
             background: white;
             border-radius: 16px;
@@ -390,7 +383,6 @@
             font-size: 14px;
         }
         
-        /* Admin Panel */
         .admin-panel {
             background: linear-gradient(135deg, #fff9c4 0%, #fff59d 100%);
             border-radius: 16px;
@@ -479,7 +471,6 @@
             font-weight: 600;
         }
         
-        /* Toast Mesaj */
         .toast {
             position: fixed;
             bottom: 30px;
@@ -507,7 +498,6 @@
             to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
         
-        /* Loading */
         .loading {
             text-align: center;
             padding: 40px;
@@ -545,9 +535,7 @@
     </div>
     
     <div class="main-layout">
-        <!-- Sol: Takvim -->
         <div class="takvim-bolumu">
-            <!-- Stüdyo ve Alan Seçimi -->
             <div class="selector-row">
                 <div class="selector">
                     <label>Stüdyo</label>
@@ -564,7 +552,6 @@
                 </div>
             </div>
             
-            <!-- Ay Seçici -->
             <div class="month-selector">
                 <button class="month-nav" onclick="ayDegistir(-1)">◀</button>
                 <span class="month-display" id="month-display">Ocak 2026</span>
@@ -572,11 +559,9 @@
                 <button class="today-btn" onclick="bugune()">Bugün</button>
             </div>
             
-            <!-- Tarih Seçimi -->
             <div class="date-scroll" id="date-scroll">
             </div>
             
-            <!-- Slotlar -->
             <div class="slots-container">
                 <div class="slots-title" id="slots-title">Saatler yükleniyor...</div>
                 <div class="slots-grid" id="slots-grid">
@@ -604,7 +589,6 @@
             </div>
             
             {% if admin %}
-            <!-- Admin Panel -->
             <div class="admin-panel">
                 <h3>👑 Admin Paneli - Toplu İşlem</h3>
                 
@@ -699,7 +683,6 @@
             {% endif %}
         </div>
         
-        <!-- Sağ: Aktivite Paneli -->
         <div class="aktivite-bolumu">
             <div class="aktivite-panel">
                 <h3>📋 Son İşlemler</h3>
@@ -947,8 +930,8 @@
                 
                 container.innerHTML = aktiviteler.map(a => {
                     const islemText = a.islem === 'rezerve' ? 'rezerve etti' : 'iptal etti';
-                    const tarihObj = new Date(a.tarih);
-                    const tarihStr = `${tarihObj.getDate()} ${ayIsimleri[tarihObj.getMonth()]}`;
+                    const tarihParts = a.tarih.split('-');
+                    const tarihStr = `${parseInt(tarihParts[2])} ${ayIsimleri[parseInt(tarihParts[1]) - 1]}`;
                     
                     return `
                         <div class="aktivite-item ${a.islem}">
