@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 app = Flask(__name__)
 app.secret_key = 'swing-planet-2024-secret-key'
+app.config['JSON_AS_ASCII'] = False  # Türkçe karakterler için
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 
@@ -81,40 +82,40 @@ except:
 
 KULLANICILAR = {
     # Admin'ler
-    "5550001111": {"isim": "Ugur Altun", "admin": True},
-    "5550002222": {"isim": "Bilge Kocabas", "admin": True},
+    "5550001111": {"isim": "Uğur Altun", "admin": True},
+    "5550002222": {"isim": "Bilge Kocabaş", "admin": True},
     
     # Ekip
-    "5409171998": {"isim": "Kubra Gozde Zorlu", "admin": False},
+    "5409171998": {"isim": "Kübra Gözde Zorlu", "admin": False},
     "5347666377": {"isim": "Berfin Tomruk", "admin": False},
-    "5074942445": {"isim": "Ozhan Kakis", "admin": False},
+    "5074942445": {"isim": "Özhan Kakış", "admin": False},
     "5367194693": {"isim": "Mert Tomruk", "admin": False},
-    "5417383748": {"isim": "Duygu Bolukbasi Yildirim", "admin": False},
-    "5364906694": {"isim": "Ceyhan Ileri", "admin": False},
-    "5425614963": {"isim": "Busra Karakose", "admin": False},
-    "5307013845": {"isim": "Tugce Karagulen", "admin": False},
-    "5434564332": {"isim": "Enes Cepni", "admin": False},
-    "5377974644": {"isim": "Serpil Kosak", "admin": False},
-    "5357132619": {"isim": "Alperen Haciismailoglu", "admin": False},
-    "5448482424": {"isim": "Zehra Ergul", "admin": False},
-    "5348878568": {"isim": "Muhammet Bulbul", "admin": False},
-    "5350279213": {"isim": "Emre Agdas", "admin": False},
-    "5335437664": {"isim": "Ilker Guney", "admin": False},
-    "5302821881": {"isim": "Kayhan Tufekci", "admin": False},
-    "5367777965": {"isim": "Basak Cengiz", "admin": False},
-    "5455151266": {"isim": "Atacan Aguzum", "admin": False},
-    "5528451111": {"isim": "Emre Gokalp", "admin": False},
-    "5064568591": {"isim": "Funda Aclan", "admin": False},
-    "5383537044": {"isim": "Nida Kucukaslan", "admin": False},
+    "5417383748": {"isim": "Duygu Bölükbaşı Yıldırım", "admin": False},
+    "5364906694": {"isim": "Ceyhan İleri", "admin": False},
+    "5425614963": {"isim": "Büşra Karaköse", "admin": False},
+    "5307013845": {"isim": "Tuğçe Karagülen", "admin": False},
+    "5434564332": {"isim": "Enes Çepni", "admin": False},
+    "5377974644": {"isim": "Serpil Koşak", "admin": False},
+    "5357132619": {"isim": "Alperen Hacıismailoğlu", "admin": False},
+    "5448482424": {"isim": "Zehra Ergül", "admin": False},
+    "5348878568": {"isim": "Muhammet Bülbül", "admin": False},
+    "5350279213": {"isim": "Emre Ağdaş", "admin": False},
+    "5335437664": {"isim": "İlker Güney", "admin": False},
+    "5302821881": {"isim": "Kayhan Tüfekçi", "admin": False},
+    "5367777965": {"isim": "Başak Cengiz", "admin": False},
+    "5455151266": {"isim": "Atacan Ağüzüm", "admin": False},
+    "5528451111": {"isim": "Emre Gökalp", "admin": False},
+    "5064568591": {"isim": "Funda Açlan", "admin": False},
+    "5383537044": {"isim": "Nida Küçükaslan", "admin": False},
     "5075277754": {"isim": "Zehra Erek", "admin": False},
-    "5050230175": {"isim": "Beyza Yildirim", "admin": False},
-    "5066735330": {"isim": "Ozge Aydin", "admin": False},
-    "5068647964": {"isim": "Ceyda Dinc", "admin": False},
+    "5050230175": {"isim": "Beyza Yıldırım", "admin": False},
+    "5066735330": {"isim": "Özge Aydın", "admin": False},
+    "5068647964": {"isim": "Ceyda Dinç", "admin": False},
 }
 
 STUDYOLAR = {
     'kadikoy': {
-        'isim': 'Kadikoy',
+        'isim': 'Kadıköy',
         'alanlar': ['Ana Salon'],
         'saatler': {
             'hafta_ici': {'baslangic': '16:00', 'bitis': '22:00'},
@@ -122,8 +123,8 @@ STUDYOLAR = {
         }
     },
     'sisli': {
-        'isim': 'Sisli',
-        'alanlar': ['Buyuk Studyo', 'Kucuk Studyo', 'Perdeli Alan'],
+        'isim': 'Şişli',
+        'alanlar': ['Büyük Stüdyo', 'Küçük Stüdyo', 'Perdeli Alan'],
         'saatler': {
             'hafta_ici': {'baslangic': '12:00', 'bitis': '22:00'},
             'hafta_sonu': {'baslangic': '12:00', 'bitis': '22:00'}
@@ -133,14 +134,14 @@ STUDYOLAR = {
 
 PRATIK_BILGI = {
     'sisli': {
-        'gun': 2,  # Carsamba
+        'gun': 2,  # Çarşamba
         'saat': '20.30 - 22.30',
-        'yer': 'Sisli Bomonti'
+        'yer': 'Şişli Bomonti'
     },
     'kadikoy': {
         'gun': 4,  # Cuma
         'saat': '20.45 - 22.30',
-        'yer': 'Kadikoy'
+        'yer': 'Kadıköy'
     }
 }
 
@@ -165,14 +166,14 @@ def saat_listesi_olustur(baslangic, bitis):
     return saatler
 
 def get_pratik_tarihi(lokasyon):
-    """Bu haftanin pratik tarihini bul"""
+    """Bu haftanın pratik tarihini bul"""
     bugun = datetime.now().date()
     hedef_gun = PRATIK_BILGI[lokasyon]['gun']
     
-    # Bu haftanin pazartesisi
+    # Bu haftanın pazartesisi
     pazartesi = bugun - timedelta(days=bugun.weekday())
     
-    # Bu haftanin pratik gunu
+    # Bu haftanın pratik günü
     pratik_tarihi = pazartesi + timedelta(days=hedef_gun)
     
     return pratik_tarihi
@@ -182,45 +183,45 @@ def anket_aktif_mi(lokasyon):
     now = datetime.now()
     bugun = now.date()
     
-    # Bu haftanin pazartesisi
+    # Bu haftanın pazartesisi
     pazartesi = bugun - timedelta(days=bugun.weekday())
     
     pratik_tarihi = get_pratik_tarihi(lokasyon)
     
-    # Pazartesi 00:00'dan pratik gunu 23:59'a kadar acik
+    # Pazartesi 00:00'dan pratik günü 23:59'a kadar açık
     if pazartesi <= bugun <= pratik_tarihi:
         return True, pratik_tarihi
     
     return False, pratik_tarihi
 
 def pratik_mesaji_olustur(lokasyon, gorevliler):
-    """WhatsApp mesaji olustur"""
+    """WhatsApp mesajı oluştur"""
     pratik_tarihi = get_pratik_tarihi(lokasyon)
     bilgi = PRATIK_BILGI[lokasyon]
     
-    gun_isimleri = ['Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma', 'Cumartesi', 'Pazar']
-    ay_isimleri = ['Ocak', 'Subat', 'Mart', 'Nisan', 'Mayis', 'Haziran', 
-                   'Temmuz', 'Agustos', 'Eylul', 'Ekim', 'Kasim', 'Aralik']
+    gun_isimleri = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
+    ay_isimleri = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
+                   'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
     
     gun_adi = gun_isimleri[pratik_tarihi.weekday()]
     tarih_str = f"{pratik_tarihi.day} {ay_isimleri[pratik_tarihi.month - 1]}"
     
     gorevli_listesi = list(gorevliler)
     
-    # Sisli icin ozel durum (gizli)
+    # Şişli için özel durum (gizli)
     if lokasyon == 'sisli':
-        ozel_isim = 'Ugur Altun'
+        ozel_isim = 'Uğur Altun'
         if ozel_isim not in gorevli_listesi:
             gorevli_listesi = [ozel_isim] + gorevli_listesi
         elif gorevli_listesi[0] != ozel_isim:
             gorevli_listesi.remove(ozel_isim)
             gorevli_listesi = [ozel_isim] + gorevli_listesi
     
-    gorevli_str = ', '.join(gorevli_listesi) if gorevli_listesi else 'Henuz belli degil'
+    gorevli_str = ', '.join(gorevli_listesi) if gorevli_listesi else 'Henüz belli değil'
     
-    mesaj = f"""Bugun, {tarih_str} {gun_adi}, saat {bilgi['saat']} saatleri arasi {bilgi['yer']}'de pratik yapabilirsiniz.
+    mesaj = f"""Bugün, {tarih_str} {gun_adi}, saat {bilgi['saat']} saatleri arası {bilgi['yer']}'de pratik yapabilirsiniz.
 
-Pratik gorevlileri: {gorevli_str}.
+Pratik görevlileri: {gorevli_str}.
 
 Sevgiler ✨"""
     
@@ -246,7 +247,7 @@ def login():
         session['admin'] = KULLANICILAR[telefon]['admin']
         return redirect(url_for('takvim'))
     else:
-        return render_template('giris.html', hata='Bu numara kayitli degil')
+        return render_template('giris.html', hata='Bu numara kayıtlı değil')
 
 @app.route('/logout')
 def logout():
@@ -336,7 +337,7 @@ def rezerve():
         conn.run('INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (:p1, :p2, :p3, :p4, :p5, :p6)', p1=session['isim'], p2='rezerve', p3=studyo_isim, p4=alan, p5=tarih, p6=saat)
         conn.close()
         
-        return jsonify({'success': True, 'mesaj': 'Rezervasyon yapildi!'})
+        return jsonify({'success': True, 'mesaj': 'Rezervasyon yapıldı!'})
     except Exception as e:
         print(f"Hata: {e}")
         return jsonify({'success': False, 'error': str(e)})
@@ -356,7 +357,7 @@ def iptal():
         
         if not rows:
             conn.close()
-            return jsonify({'success': False, 'error': 'Rezervasyon bulunamadi'})
+            return jsonify({'success': False, 'error': 'Rezervasyon bulunamadı'})
         
         telefon = rows[0][1]
         if telefon != session['telefon'] and not session.get('admin'):
@@ -392,13 +393,13 @@ def get_aktiviteler():
                 diff = timedelta(seconds=0)
             
             if diff.total_seconds() < 60:
-                zaman = 'Az once'
+                zaman = 'Az önce'
             elif diff.total_seconds() < 3600:
-                zaman = f'{int(diff.total_seconds() // 60)} dakika once'
+                zaman = f'{int(diff.total_seconds() // 60)} dakika önce'
             elif diff.total_seconds() < 86400:
-                zaman = f'{int(diff.total_seconds() // 3600)} saat once'
+                zaman = f'{int(diff.total_seconds() // 3600)} saat önce'
             else:
-                zaman = f'{diff.days} gun once'
+                zaman = f'{diff.days} gün önce'
             
             tarih_str = row[4].strftime('%Y-%m-%d') if hasattr(row[4], 'strftime') else str(row[4])
             aktiviteler.append({'isim': row[0], 'islem': row[1], 'studyo': row[2], 'alan': row[3], 'tarih': tarih_str, 'saat': row[5], 'zaman': zaman})
@@ -450,7 +451,7 @@ def toplu_blok():
                     islem_sayisi += 1
         
         conn.close()
-        return jsonify({'success': True, 'mesaj': f'{islem_sayisi} slot guncellendi'})
+        return jsonify({'success': True, 'mesaj': f'{islem_sayisi} slot güncellendi'})
     except Exception as e:
         print(f"Hata: {e}")
         return jsonify({'success': False, 'error': str(e)})
@@ -460,7 +461,7 @@ def toplu_blok():
 @app.route('/api/pratik/durum')
 @login_required
 def pratik_durum():
-    """Her iki lokasyon icin anket durumu"""
+    """Her iki lokasyon için anket durumu"""
     try:
         sonuc = {}
         conn = get_db()
@@ -469,12 +470,12 @@ def pratik_durum():
             aktif, pratik_tarihi = anket_aktif_mi(lokasyon)
             tarih_str = pratik_tarihi.strftime('%Y-%m-%d')
             
-            # Kullanicinin cevabi
+            # Kullanıcının cevabı
             rows = conn.run('SELECT cevap FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND telefon = :p3', 
                           p1=tarih_str, p2=lokasyon, p3=session['telefon'])
             kullanici_cevap = rows[0][0] if rows else None
             
-            # Tum cevaplar
+            # Tüm cevaplar
             evet_rows = conn.run('SELECT isim FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND cevap = :p3 ORDER BY created_at', 
                                p1=tarih_str, p2=lokasyon, p3='evet')
             hayir_rows = conn.run('SELECT isim FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND cevap = :p3 ORDER BY created_at', 
@@ -483,12 +484,12 @@ def pratik_durum():
             evet_listesi = [r[0] for r in evet_rows]
             hayir_listesi = [r[0] for r in hayir_rows]
             
-            # Mesaj olustur
+            # Mesaj oluştur
             mesaj = pratik_mesaji_olustur(lokasyon, evet_listesi)
             
-            gun_isimleri = ['Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma', 'Cumartesi', 'Pazar']
-            ay_isimleri = ['Ocak', 'Subat', 'Mart', 'Nisan', 'Mayis', 'Haziran', 
-                          'Temmuz', 'Agustos', 'Eylul', 'Ekim', 'Kasim', 'Aralik']
+            gun_isimleri = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
+            ay_isimleri = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
+                          'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
             
             sonuc[lokasyon] = {
                 'aktif': aktif,
@@ -519,13 +520,13 @@ def pratik_oyla():
         
         aktif, pratik_tarihi = anket_aktif_mi(lokasyon)
         if not aktif:
-            return jsonify({'success': False, 'error': 'Anket su anda kapali'})
+            return jsonify({'success': False, 'error': 'Anket şu anda kapalı'})
         
         tarih_str = pratik_tarihi.strftime('%Y-%m-%d')
         
         conn = get_db()
         
-        # Onceki cevabi sil
+        # Önceki cevabı sil
         conn.run('DELETE FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND telefon = :p3',
                 p1=tarih_str, p2=lokasyon, p3=session['telefon'])
         
@@ -533,7 +534,7 @@ def pratik_oyla():
         conn.run('INSERT INTO pratik_anket (pratik_tarih, lokasyon, telefon, isim, cevap) VALUES (:p1, :p2, :p3, :p4, :p5)',
                 p1=tarih_str, p2=lokasyon, p3=session['telefon'], p4=session['isim'], p5=cevap)
         
-        # Eger evet ise gorevli tablosuna da ekle
+        # Eğer evet ise görevli tablosuna da ekle
         if cevap == 'evet':
             try:
                 conn.run('INSERT INTO pratik_gorevli (pratik_tarih, lokasyon, telefon, isim) VALUES (:p1, :p2, :p3, :p4)',
@@ -554,11 +555,11 @@ def pratik_oyla():
 @app.route('/api/pratik/istatistik')
 @login_required
 def pratik_istatistik_api():
-    """Pratik gorevli istatistikleri"""
+    """Pratik görevli istatistikleri"""
     try:
         conn = get_db()
         
-        # Sisli istatistikleri
+        # Şişli istatistikleri
         sisli_rows = conn.run('''
             SELECT isim, COUNT(*) as sayi 
             FROM pratik_gorevli 
@@ -567,7 +568,7 @@ def pratik_istatistik_api():
             ORDER BY sayi DESC, isim
         ''', p1='sisli')
         
-        # Kadikoy istatistikleri
+        # Kadıköy istatistikleri
         kadikoy_rows = conn.run('''
             SELECT isim, COUNT(*) as sayi 
             FROM pratik_gorevli 
