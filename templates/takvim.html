@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stüdyo Takvimi - Swing Planet</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; min-height: 100vh; }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header h1 { font-size: 18px; display: flex; align-items: center; gap: 10px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-name { font-size: 14px; opacity: 0.9; }
+        .admin-badge { background: #ffd700; color: #1a1a2e; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .nav-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-size: 13px; text-decoration: none; margin-left: 10px; }
+        .nav-btn.pratik { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        
+        .main-layout { display: flex; max-width: 1400px; margin: 0 auto; gap: 20px; padding: 20px; }
+        .takvim-bolumu { flex: 1; min-width: 0; }
+        .aktivite-bolumu { width: 320px; flex-shrink: 0; }
+        @media (max-width: 900px) {
+            .main-layout { flex-direction: column; }
+            .aktivite-bolumu { width: 100%; }
+        }
+        
+        .selector-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .selector { flex: 1; min-width: 150px; }
+        .selector label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; }
+        .selector select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 16px; background: white; cursor: pointer; }
+        .selector select:focus { outline: none; border-color: #667eea; }
+        
+        .month-selector { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; background: white; padding: 15px; border-radius: 12px; }
+        .month-nav { background: #667eea; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .month-nav:hover { background: #5a6fd6; }
+        .month-display { font-size: 18px; font-weight: 600; color: #1a1a2e; min-width: 150px; text-align: center; }
+        .today-btn { background: #e8f5e9; color: #2e7d32; border: none; padding: 8px 15px; border-radius: 8px; font-size: 13px; cursor: pointer; font-weight: 500; }
+        
+        .date-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-bottom: 20px; -webkit-overflow-scrolling: touch; }
+        .date-item { flex-shrink: 0; width: 60px; padding: 10px; text-align: center; background: white; border: 2px solid #e0e0e0; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+        .date-item:hover { border-color: #667eea; }
+        .date-item.selected { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-color: transparent; color: white; }
+        .date-item.today { border-color: #4caf50; }
+        .date-item .gun-adi { font-size: 12px; opacity: 0.7; }
+        .date-item .gun-no { font-size: 24px; font-weight: 700; }
+        .date-item .ay { font-size: 11px; opacity: 0.7; }
+        
+        .slots-container { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .slots-title { font-size: 14px; color: #666; margin-bottom: 15px; }
+        .slots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; }
+        
+        .slot { padding: 12px 8px; text-align: center; border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
+        .slot.bos { background: #e8f5e9; color: #2e7d32; }
+        .slot.bos:hover { background: #c8e6c9; transform: scale(1.05); }
+        .slot.dolu { background: #ffebee; color: #c62828; cursor: not-allowed; }
+        .slot.dolu .kisi { font-size: 10px; opacity: 0.8; display: block; margin-top: 3px; }
+        .slot.kendi { background: #e3f2fd; color: #1565c0; border-color: #1565c0; cursor: pointer; }
+        .slot.bloklu { background: #424242; color: #9e9e9e; cursor: not-allowed; }
+        .slot.bloklu::after { content: '🚫'; display: block; font-size: 10px; }
+        
+        .legend { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+        .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #666; }
+        .legend-color { width: 16px; height: 16px; border-radius: 4px; }
+        
+        .aktivite-panel { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 80px; max-height: calc(100vh - 100px); overflow-y: auto; }
+        .aktivite-panel h3 { font-size: 16px; color: #1a1a2e; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .aktivite-list { display: flex; flex-direction: column; gap: 12px; }
+        .aktivite-item { padding: 12px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #667eea; }
+        .aktivite-item.iptal { border-left-color: #ef5350; }
+        .aktivite-isim { font-weight: 600; color: #1a1a2e; font-size: 14px; }
+        .aktivite-detay { font-size: 12px; color: #666; margin-top: 4px; }
+        .aktivite-zaman { font-size: 11px; color: #999; margin-top: 6px; }
+        .aktivite-empty { text-align: center; color: #999; padding: 30px; font-size: 14px; }
+        
+        .admin-panel { background: linear-gradient(135deg, #fff9c4 0%, #fff59d 100%); border-radius: 16px; padding: 20px; margin-top: 20px; border: 2px solid #ffd600; }
+        .admin-panel h3 { color: #f57f17; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .admin-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+        .admin-row label { font-size: 12px; color: #666; display: block; margin-bottom: 5px; }
+        .admin-row select, .admin-row input { padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; }
+        .gun-checkbox-group { display: flex; gap: 5px; flex-wrap: wrap; }
+        .gun-checkbox { display: none; }
+        .gun-label { padding: 8px 12px; background: white; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+        .gun-checkbox:checked + .gun-label { background: #667eea; border-color: #667eea; color: white; }
+        .admin-buttons { display: flex; gap: 10px; }
+        .btn-blok { padding: 12px 20px; background: #c62828; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .btn-ac { padding: 12px 20px; background: #2e7d32; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #323232; color: white; padding: 15px 25px; border-radius: 10px; display: none; z-index: 1000; animation: slideUp 0.3s ease; }
+        .toast.success { background: #2e7d32; }
+        .toast.error { background: #c62828; }
+        @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .loading::after { content: ''; display: inline-block; width: 20px; height: 20px; border: 2px solid #ddd; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin-left: 10px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><img src="/static/logo.png" alt="Swing Planet" style="height: 30px; vertical-align: middle;"> Swing Planet</h1>
+        <div class="user-info">
+            <span class="user-name">{{ isim }}</span>
+            {% if admin %}
+            <span class="admin-badge">👑 Admin</span>
+            {% endif %}
+            <a href="/pratik" class="nav-btn pratik">🗳️ Pratik Anketi</a>
+            <a href="/logout" class="nav-btn">Çıkış</a>
+        </div>
+    </div>
+    
+    <div class="main-layout">
+        <div class="takvim-bolumu">
+            <div class="selector-row">
+                <div class="selector">
+                    <label>Stüdyo</label>
+                    <select id="studyo-select">
+                        {% for key, studyo in studyolar.items() %}
+                        <option value="{{ key }}">{{ studyo.isim }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="selector">
+                    <label>Alan</label>
+                    <select id="alan-select"></select>
+                </div>
+            </div>
+            
+            <div class="month-selector">
+                <button class="month-nav" onclick="ayDegistir(-1)">◀</button>
+                <span class="month-display" id="month-display">Ocak 2026</span>
+                <button class="month-nav" onclick="ayDegistir(1)">▶</button>
+                <button class="today-btn" onclick="bugune()">Bugün</button>
+            </div>
+            
+            <div class="date-scroll" id="date-scroll"></div>
+            
+            <div class="slots-container">
+                <div class="slots-title" id="slots-title">Saatler yükleniyor...</div>
+                <div class="slots-grid" id="slots-grid">
+                    <div class="loading">Yükleniyor</div>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color" style="background: #e8f5e9;"></div><span>Boş</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background: #e3f2fd; border: 2px solid #1565c0;"></div><span>Senin</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background: #ffebee;"></div><span>Dolu</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background: #424242;"></div><span>Kapalı</span></div>
+                </div>
+            </div>
+            
+            {% if admin %}
+            <div class="admin-panel">
+                <h3>👑 Admin Paneli - Toplu İşlem</h3>
+                
+                <div class="admin-row">
+                    <div>
+                        <label>Günler</label>
+                        <div class="gun-checkbox-group">
+                            <input type="checkbox" id="gun-pzt" class="gun-checkbox" value="Pzt">
+                            <label for="gun-pzt" class="gun-label">Pzt</label>
+                            <input type="checkbox" id="gun-sal" class="gun-checkbox" value="Sal">
+                            <label for="gun-sal" class="gun-label">Sal</label>
+                            <input type="checkbox" id="gun-car" class="gun-checkbox" value="Çar">
+                            <label for="gun-car" class="gun-label">Çar</label>
+                            <input type="checkbox" id="gun-per" class="gun-checkbox" value="Per">
+                            <label for="gun-per" class="gun-label">Per</label>
+                            <input type="checkbox" id="gun-cum" class="gun-checkbox" value="Cum">
+                            <label for="gun-cum" class="gun-label">Cum</label>
+                            <input type="checkbox" id="gun-cmt" class="gun-checkbox" value="Cmt">
+                            <label for="gun-cmt" class="gun-label">Cmt</label>
+                            <input type="checkbox" id="gun-paz" class="gun-checkbox" value="Paz">
+                            <label for="gun-paz" class="gun-label">Paz</label>
+                            <input type="checkbox" id="gun-hepsi" class="gun-checkbox" value="Hepsi">
+                            <label for="gun-hepsi" class="gun-label">Hepsi</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="admin-row">
+                    <div>
+                        <label>Başlangıç Saati</label>
+                        <select id="admin-saat-bas">
+                            <option value="12:00">12:00</option>
+                            <option value="12:30">12:30</option>
+                            <option value="13:00">13:00</option>
+                            <option value="13:30">13:30</option>
+                            <option value="14:00">14:00</option>
+                            <option value="14:30">14:30</option>
+                            <option value="15:00">15:00</option>
+                            <option value="15:30">15:30</option>
+                            <option value="16:00">16:00</option>
+                            <option value="16:30">16:30</option>
+                            <option value="17:00">17:00</option>
+                            <option value="17:30">17:30</option>
+                            <option value="18:00">18:00</option>
+                            <option value="18:30">18:30</option>
+                            <option value="19:00">19:00</option>
+                            <option value="19:30">19:30</option>
+                            <option value="20:00">20:00</option>
+                            <option value="20:30">20:30</option>
+                            <option value="21:00">21:00</option>
+                            <option value="21:30">21:30</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Bitiş Saati</label>
+                        <select id="admin-saat-bit">
+                            <option value="13:00">13:00</option>
+                            <option value="13:30">13:30</option>
+                            <option value="14:00">14:00</option>
+                            <option value="14:30">14:30</option>
+                            <option value="15:00">15:00</option>
+                            <option value="15:30">15:30</option>
+                            <option value="16:00">16:00</option>
+                            <option value="16:30">16:30</option>
+                            <option value="17:00" selected>17:00</option>
+                            <option value="17:30">17:30</option>
+                            <option value="18:00">18:00</option>
+                            <option value="18:30">18:30</option>
+                            <option value="19:00">19:00</option>
+                            <option value="19:30">19:30</option>
+                            <option value="20:00">20:00</option>
+                            <option value="20:30">20:30</option>
+                            <option value="21:00">21:00</option>
+                            <option value="21:30">21:30</option>
+                            <option value="22:00">22:00</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="admin-buttons">
+                    <button class="btn-blok" onclick="topluIslem('blokla')">🚫 Seçili Saatleri Blokla</button>
+                    <button class="btn-ac" onclick="topluIslem('ac')">✅ Blokları Kaldır</button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="aktivite-bolumu">
+            <div class="aktivite-panel">
+                <h3>📋 Son İşlemler</h3>
+                <div class="aktivite-list" id="aktivite-list">
+                    <div class="loading">Yükleniyor</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        const studyolar = {{ studyolar | tojson }};
+        const ayIsimleri = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+        const gunIsimleri = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+        
+        let seciliStudyo = 'kadikoy';
+        let seciliAlan = '';
+        let seciliTarih = '';
+        let goruntulenAy = new Date();
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            alanSecenekleriniGuncelle();
+            gunleriOlustur();
+            aktiviteleriYukle();
+            setInterval(aktiviteleriYukle, 30000);
+        });
+        
+        document.getElementById('studyo-select').addEventListener('change', function() {
+            seciliStudyo = this.value;
+            alanSecenekleriniGuncelle();
+            slotlariYukle();
+        });
+        
+        document.getElementById('alan-select').addEventListener('change', function() {
+            seciliAlan = this.value;
+            slotlariYukle();
+        });
+        
+        function alanSecenekleriniGuncelle() {
+            const alanSelect = document.getElementById('alan-select');
+            const alanlar = studyolar[seciliStudyo].alanlar;
+            alanSelect.innerHTML = alanlar.map(a => `<option value="${a}">${a}</option>`).join('');
+            seciliAlan = alanlar[0];
+        }
+        
+        function ayDegistir(delta) {
+            goruntulenAy.setMonth(goruntulenAy.getMonth() + delta);
+            gunleriOlustur();
+        }
+        
+        function bugune() {
+            goruntulenAy = new Date();
+            seciliTarih = '';
+            gunleriOlustur();
+        }
+        
+        function formatTarih(gun) {
+            const yil = gun.getFullYear();
+            const ay = String(gun.getMonth() + 1).padStart(2, '0');
+            const g = String(gun.getDate()).padStart(2, '0');
+            return `${yil}-${ay}-${g}`;
+        }
+        
+        function gunleriOlustur() {
+            const container = document.getElementById('date-scroll');
+            const monthDisplay = document.getElementById('month-display');
+            
+            monthDisplay.textContent = `${ayIsimleri[goruntulenAy.getMonth()]} ${goruntulenAy.getFullYear()}`;
+            
+            const yil = goruntulenAy.getFullYear();
+            const ay = goruntulenAy.getMonth();
+            const ilkGun = new Date(yil, ay, 1);
+            const sonGun = new Date(yil, ay + 1, 0);
+            
+            const bugun = new Date();
+            bugun.setHours(0,0,0,0);
+            
+            let html = '';
+            let ilkGecerliTarih = null;
+            
+            for (let gun = new Date(ilkGun); gun <= sonGun; gun.setDate(gun.getDate() + 1)) {
+                const tarihStr = formatTarih(gun);
+                const gunKopya = new Date(gun);
+                gunKopya.setHours(0,0,0,0);
+                
+                const bugunMu = gunKopya.getTime() === bugun.getTime();
+                const gecmisMi = gunKopya < bugun;
+                
+                if (gecmisMi) continue;
+                
+                if (!ilkGecerliTarih) ilkGecerliTarih = tarihStr;
+                
+                const selected = seciliTarih === tarihStr ? 'selected' : '';
+                const todayClass = bugunMu ? 'today' : '';
+                
+                html += `
+                    <div class="date-item ${selected} ${todayClass}" data-tarih="${tarihStr}" onclick="tarihSec('${tarihStr}', this)">
+                        <div class="gun-adi">${gunIsimleri[gun.getDay()]}</div>
+                        <div class="gun-no">${gun.getDate()}</div>
+                        <div class="ay">${ayIsimleri[gun.getMonth()].substring(0,3)}</div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html || '<p style="padding:20px;color:#999;">Bu ayda geçerli gün yok</p>';
+            
+            if (!seciliTarih && ilkGecerliTarih) {
+                seciliTarih = ilkGecerliTarih;
+                const ilkItem = container.querySelector('.date-item');
+                if (ilkItem) ilkItem.classList.add('selected');
+            }
+            
+            slotlariYukle();
+        }
+        
+        function tarihSec(tarih, element) {
+            document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
+            element.classList.add('selected');
+            seciliTarih = tarih;
+            slotlariYukle();
+        }
+        
+        async function slotlariYukle() {
+            if (!seciliTarih) return;
+            
+            const grid = document.getElementById('slots-grid');
+            const title = document.getElementById('slots-title');
+            
+            grid.innerHTML = '<div class="loading">Yükleniyor</div>';
+            title.textContent = `${studyolar[seciliStudyo].isim} - ${seciliAlan}`;
+            
+            try {
+                const res = await fetch(`/api/slotlar/${seciliStudyo}/${encodeURIComponent(seciliAlan)}/${seciliTarih}`);
+                const slotlar = await res.json();
+                
+                if (slotlar.length === 0) {
+                    grid.innerHTML = '<p style="color:#999;">Bu gün için slot yok</p>';
+                    return;
+                }
+                
+                grid.innerHTML = slotlar.map(slot => {
+                    let cls = slot.durum;
+                    if (slot.kendi_mi) cls = 'kendi';
+                    
+                    let kisiText = '';
+                    if (slot.durum === 'dolu' && slot.kisi && !slot.kendi_mi) {
+                        kisiText = `<span class="kisi">${slot.kisi}</span>`;
+                    }
+                    if (slot.kendi_mi) {
+                        kisiText = `<span class="kisi">Sen</span>`;
+                    }
+                    
+                    return `<div class="slot ${cls}" data-saat="${slot.saat}" onclick="slotTikla(this, '${slot.durum}', ${slot.kendi_mi})">
+                        ${slot.saat}
+                        ${kisiText}
+                    </div>`;
+                }).join('');
+                
+            } catch (err) {
+                grid.innerHTML = '<p style="color:#c62828;">Hata oluştu</p>';
+            }
+        }
+        
+        async function slotTikla(el, durum, kendiMi) {
+            const saat = el.dataset.saat;
+            
+            if (durum === 'bloklu') { toast('Bu saat bloklanmış', 'error'); return; }
+            if (durum === 'dolu' && !kendiMi) { toast('Bu saat dolu', 'error'); return; }
+            
+            if (kendiMi) {
+                if (confirm(`${saat} rezervasyonunu iptal etmek istiyor musun?`)) {
+                    await iptalEt(saat);
+                }
+            } else {
+                await rezerveEt(saat);
+            }
+        }
+        
+        async function rezerveEt(saat) {
+            try {
+                const res = await fetch('/api/rezerve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ studyo: seciliStudyo, alan: seciliAlan, tarih: seciliTarih, saat: saat })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    toast(data.mesaj, 'success');
+                    slotlariYukle();
+                    aktiviteleriYukle();
+                } else {
+                    toast(data.error, 'error');
+                }
+            } catch (err) {
+                toast('Bir hata oluştu', 'error');
+            }
+        }
+        
+        async function iptalEt(saat) {
+            try {
+                const res = await fetch('/api/iptal', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ studyo: seciliStudyo, alan: seciliAlan, tarih: seciliTarih, saat: saat })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    toast(data.mesaj, 'success');
+                    slotlariYukle();
+                    aktiviteleriYukle();
+                } else {
+                    toast(data.error, 'error');
+                }
+            } catch (err) {
+                toast('Bir hata oluştu', 'error');
+            }
+        }
+        
+        async function aktiviteleriYukle() {
+            try {
+                const res = await fetch('/api/aktiviteler');
+                const aktiviteler = await res.json();
+                
+                const container = document.getElementById('aktivite-list');
+                
+                if (aktiviteler.length === 0) {
+                    container.innerHTML = '<div class="aktivite-empty">Henüz işlem yok</div>';
+                    return;
+                }
+                
+                container.innerHTML = aktiviteler.map(a => {
+                    const islemText = a.islem === 'rezerve' ? 'rezerve etti' : 'iptal etti';
+                    const tarihParts = a.tarih.split('-');
+                    const tarihStr = `${parseInt(tarihParts[2])} ${ayIsimleri[parseInt(tarihParts[1]) - 1]}`;
+                    
+                    return `
+                        <div class="aktivite-item ${a.islem}">
+                            <div class="aktivite-isim">${a.isim}</div>
+                            <div class="aktivite-detay">
+                                ${a.studyo} - ${a.alan}<br>
+                                ${tarihStr} ${a.saat} icin ${islemText}
+                            </div>
+                            <div class="aktivite-zaman">${a.zaman}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (err) {
+                console.error('Aktivite yüklenemedi:', err);
+            }
+        }
+        
+        async function topluIslem(islem) {
+            const gunler = [];
+            document.querySelectorAll('.gun-checkbox:checked').forEach(cb => gunler.push(cb.value));
+            
+            if (gunler.length === 0) { toast('En az bir gün seç', 'error'); return; }
+            
+            const saatBas = document.getElementById('admin-saat-bas').value;
+            const saatBit = document.getElementById('admin-saat-bit').value;
+            
+            const islemText = islem === 'blokla' ? 'bloklanacak' : 'açılacak';
+            if (!confirm(`${seciliAlan} için seçili günlerde ${saatBas}-${saatBit} arası ${islemText}. Onaylıyor musun?`)) return;
+            
+            try {
+                const res = await fetch('/api/admin/toplu-blok', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ studyo: seciliStudyo, alan: seciliAlan, gunler: gunler, saat_baslangic: saatBas, saat_bitis: saatBit, islem: islem })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    toast(data.mesaj, 'success');
+                    slotlariYukle();
+                } else {
+                    toast(data.error, 'error');
+                }
+            } catch (err) {
+                toast('Bir hata oluştu', 'error');
+            }
+        }
+        
+        function toast(mesaj, tip) {
+            const t = document.getElementById('toast');
+            t.textContent = mesaj;
+            t.className = 'toast ' + (tip || '');
+            t.style.display = 'block';
+            setTimeout(() => { t.style.display = 'none'; }, 3000);
+        }
+    </script>
+</body>
+</html>
