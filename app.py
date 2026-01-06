@@ -306,7 +306,7 @@ def toplu_blok():
         saat_bas = data['saat_baslangic']
         saat_bit = data['saat_bitis']
         islem = data['islem']
-        gun_map = {'Pzt': 0, 'Sal': 1, 'Car': 2, 'Per': 3, 'Cum': 4, 'Cmt': 5, 'Paz': 6}
+        gun_map = {'Pzt': 0, 'Sal': 1, 'Çar': 2, 'Car': 2, 'Per': 3, 'Cum': 4, 'Cmt': 5, 'Paz': 6}
         if 'hepsi' in gunler:
             secili_gunler = [0, 1, 2, 3, 4, 5, 6]
         else:
