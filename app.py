@@ -83,7 +83,7 @@ except:
 KULLANICILAR = {
     # Admin'ler
     "5550001111": {"isim": "Uğur Altun", "admin": True},
-    "5550002222": {"isim": "Bilge Kocabaş", "admin": True},
+    "5550002222": {"isim": "Bilge Sağnak Altun", "admin": True},
     
     # Ekip
     "5409171998": {"isim": "Kübra Gözde Zorlu", "admin": False},
@@ -97,6 +97,19 @@ KULLANICILAR = {
     "5434564332": {"isim": "Enes Çepni", "admin": False},
     "5377974644": {"isim": "Serpil Koşak", "admin": False},
     "5357132619": {"isim": "Alperen Hacıismailoğlu", "admin": False},
+    "5397834846": {"isim": "Büşra Aydoğanoğlu", "admin": False},
+    "5445360312": {"isim": "Leyla Özler", "admin": False},
+    "5465358679": {"isim": "Büşra Gül", "admin": False},
+    "5333737400": {"isim": "Burçin Torun", "admin": False},
+    "5434849161": {"isim": "Elif Atmaca", "admin": False},
+    "5543898154": {"isim": "Mehmet Yıldırım", "admin": False},
+    "5057710492": {"isim": "Ahmet Kızgın", "admin": False},
+    "5357717101": {"isim": "Süleyman Ufuk Eroğlu", "admin": False},
+    "5312103619": {"isim": "Melike Gün", "admin": False},
+    "5071299465": {"isim": "Onur Özdemir", "admin": False},
+    "5306653496": {"isim": "Erdem Eren", "admin": False},
+    "5317705515": {"isim": "Deniz Temizkan", "admin": False},
+    "5319478065": {"isim": "Sueda Yüceer", "admin": False},
     "5448482424": {"isim": "Zehra Ergül", "admin": False},
     "5348878568": {"isim": "Muhammet Bülbül", "admin": False},
     "5350279213": {"isim": "Emre Ağdaş", "admin": False},
