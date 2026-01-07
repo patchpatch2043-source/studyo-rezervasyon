@@ -104,7 +104,7 @@ KULLANICILAR = {
     "5434849161": {"isim": "Elif Atmaca", "admin": False},
     "5543898154": {"isim": "Mehmet Yıldırım", "admin": False},
     "5057710492": {"isim": "Ahmet Kızgın", "admin": False},
-    "5357717101": {"isim": "Süleyman Ufuk Eroğlu", "admin": False},
+    "5357717101": {"isim": "Ufuk Eroğlu", "admin": False},
     "5312103619": {"isim": "Melike Gün", "admin": False},
     "5071299465": {"isim": "Onur Özdemir", "admin": False},
     "5306653496": {"isim": "Erdem Eren", "admin": False},
