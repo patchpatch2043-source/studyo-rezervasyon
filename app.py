@@ -84,7 +84,7 @@ except:
 KULLANICILAR = {
     # Admin'ler
     "5550001111": {"isim": "Uğur Altun", "admin": True},
-    "5550002222": {"isim": "Bilge Kocabaş", "admin": True},
+    "5550002222": {"isim": "Bilge Sağnak Altun", "admin": True},
     
     # Ekip
     "5409171998": {"isim": "Kübra Gözde Zorlu", "admin": False},
