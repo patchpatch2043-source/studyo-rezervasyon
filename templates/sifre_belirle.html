@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Şifre Belirle - Swing Planet Stüdyo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .logo { width: 120px; margin-bottom: 20px; }
+        h1 {
+            color: #1a1a2e;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .welcome {
+            color: #667eea;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        .form-group label {
+            display: block;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 18px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .hint {
+            margin-top: 20px;
+            color: #999;
+            font-size: 12px;
+        }
+        .password-rules {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .password-rules h4 {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .password-rules ul {
+            color: #888;
+            font-size: 12px;
+            margin-left: 20px;
+        }
+        .password-rules li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="/static/logo.png" alt="Swing Planet" class="logo" onerror="this.style.display='none'">
+        <h1>Hoş Geldin! 🎉</h1>
+        <p class="welcome">{{ isim }}</p>
+        <p class="subtitle">Hesabın için bir şifre belirle</p>
+        
+        {% if hata %}
+        <div class="error">{{ hata }}</div>
+        {% endif %}
+        
+        <div class="password-rules">
+            <h4>Şifre kuralları:</h4>
+            <ul>
+                <li>En az 6 karakter</li>
+                <li>Hatırlayabileceğin bir şey seç</li>
+            </ul>
+        </div>
+        
+        <form method="POST" action="/sifre-kaydet">
+            <div class="form-group">
+                <label>Şifre</label>
+                <input type="password" name="sifre" placeholder="En az 6 karakter" required autofocus>
+            </div>
+            <div class="form-group">
+                <label>Şifre Tekrar</label>
+                <input type="password" name="sifre_tekrar" placeholder="Aynı şifreyi tekrar gir" required>
+            </div>
+            <button type="submit" class="btn-submit">Şifremi Kaydet</button>
+        </form>
+        
+        <p class="hint">Bu şifreyi sadece sen bileceksin</p>
+    </div>
+</body>
+</html>

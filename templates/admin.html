@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Swing Planet</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; min-height: 100vh; }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header h1 { font-size: 18px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-name { font-size: 14px; opacity: 0.9; }
+        .admin-badge { background: #ffd700; color: #1a1a2e; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .nav-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-size: 13px; text-decoration: none; margin-left: 10px; }
+        
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        
+        .page-title { font-size: 24px; color: #1a1a2e; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .user-item.no-password {
+            border-left-color: #ff9800;
+            background: #fff8e1;
+        }
+        .user-item.admin-user {
+            border-left-color: #ffd700;
+            background: #fffde7;
+        }
+        .user-name-cell { font-weight: 500; color: #1a1a2e; }
+        .user-phone { font-size: 12px; color: #666; margin-top: 2px; }
+        .user-status { font-size: 11px; }
+        .status-ok { color: #4caf50; }
+        .status-pending { color: #ff9800; }
+        
+        .btn-reset {
+            padding: 6px 12px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .btn-reset:hover { background: #d32f2f; }
+        .btn-reset:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .search-box {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .search-box:focus { outline: none; border-color: #667eea; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .stat-number { font-size: 32px; font-weight: 700; }
+        .stat-label { font-size: 12px; opacity: 0.9; margin-top: 5px; }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #323232;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            display: none;
+            z-index: 1000;
+        }
+        .toast.success { background: #2e7d32; }
+        .toast.error { background: #c62828; }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>👑 Admin Panel</h1>
+        <div class="user-info">
+            <span class="user-name">{{ isim }}</span>
+            <span class="admin-badge">👑 Admin</span>
+            <a href="/takvim" class="nav-btn">📅 Takvim</a>
+            <a href="/pratik" class="nav-btn">🗳️ Anket</a>
+            <a href="/logout" class="nav-btn">Çıkış</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2 class="page-title">⚙️ Yönetim Paneli</h2>
+        
+        <div class="stats-grid" id="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-users">-</div>
+                <div class="stat-label">Toplam Kullanıcı</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="with-password">-</div>
+                <div class="stat-label">Şifresi Var</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="without-password">-</div>
+                <div class="stat-label">Şifre Bekliyor</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">🔑 Şifre Yönetimi</div>
+            
+            <input type="text" class="search-box" id="search" placeholder="🔍 İsim veya telefon ara..." onkeyup="filtrele()">
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="border-color: #ffd700; background: #fffde7;"></div>
+                    <span>Admin</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="border-color: #667eea; background: #f8f9fa;"></div>
+                    <span>Şifresi var</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="border-color: #ff9800; background: #fff8e1;"></div>
+                    <span>Şifre bekliyor</span>
+                </div>
+            </div>
+            
+            <div class="user-list" id="user-list">
+                <!-- Kullanıcılar buraya yüklenecek -->
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        const kullanicilar = {{ kullanicilar | tojson }};
+        let sifreliKullanicilar = [];
+        
+        async function yukle() {
+            // Şifreli kullanıcıları al
+            try {
+                const res = await fetch('/api/admin/sifre-durumu');
+                const data = await res.json();
+                sifreliKullanicilar = data.sifreli || [];
+            } catch (e) {
+                sifreliKullanicilar = [];
+            }
+            
+            renderList();
+            updateStats();
+        }
+        
+        function renderList(filtre = '') {
+            const container = document.getElementById('user-list');
+            filtre = filtre.toLowerCase();
+            
+            let html = '';
+            for (const [telefon, bilgi] of Object.entries(kullanicilar)) {
+                const isim = bilgi.isim;
+                const admin = bilgi.admin;
+                const sifreVar = sifreliKullanicilar.includes(telefon);
+                
+                // Filtre kontrolü
+                if (filtre && !isim.toLowerCase().includes(filtre) && !telefon.includes(filtre)) {
+                    continue;
+                }
+                
+                let itemClass = 'user-item';
+                if (admin) itemClass += ' admin-user';
+                else if (!sifreVar) itemClass += ' no-password';
+                
+                const statusHtml = sifreVar 
+                    ? '<span class="user-status status-ok">✓ Şifre var</span>'
+                    : '<span class="user-status status-pending">⏳ Bekliyor</span>';
+                
+                const resetBtn = sifreVar 
+                    ? `<button class="btn-reset" onclick="sifreSifirla('${telefon}', '${isim}')">Sıfırla</button>`
+                    : '';
+                
+                html += `
+                    <div class="${itemClass}">
+                        <div>
+                            <div class="user-name-cell">${isim} ${admin ? '👑' : ''}</div>
+                            <div class="user-phone">${telefon}</div>
+                            ${statusHtml}
+                        </div>
+                        ${resetBtn}
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html || '<p style="color:#999;">Kullanıcı bulunamadı</p>';
+        }
+        
+        function updateStats() {
+            const total = Object.keys(kullanicilar).length;
+            const withPass = sifreliKullanicilar.length;
+            const withoutPass = total - withPass;
+            
+            document.getElementById('total-users').textContent = total;
+            document.getElementById('with-password').textContent = withPass;
+            document.getElementById('without-password').textContent = withoutPass;
+        }
+        
+        function filtrele() {
+            const filtre = document.getElementById('search').value;
+            renderList(filtre);
+        }
+        
+        async function sifreSifirla(telefon, isim) {
+            if (!confirm(`${isim} kullanıcısının şifresini sıfırlamak istediğinize emin misiniz?\n\nKullanıcı sonraki girişte yeni şifre belirleyecek.`)) {
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/admin/sifre-sifirla', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telefon })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    toast(data.mesaj, 'success');
+                    yukle();
+                } else {
+                    toast(data.error, 'error');
+                }
+            } catch (e) {
+                toast('Bir hata oluştu', 'error');
+            }
+        }
+        
+        function toast(mesaj, tip) {
+            const t = document.getElementById('toast');
+            t.textContent = mesaj;
+            t.className = 'toast ' + (tip || '');
+            t.style.display = 'block';
+            setTimeout(() => { t.style.display = 'none'; }, 3000);
+        }
+        
+        // Sayfa yüklendiğinde
+        yukle();
+    </script>
+</body>
+</html>
