@@ -4,11 +4,14 @@ import pg8000.native
 from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import urlparse
+from hashlib import sha256
+import secrets
+import random
 
 app = Flask(__name__)
 app.secret_key = 'swing-planet-2024-secret-key'
 app.config['JSON_AS_ASCII'] = False  # Türkçe karakterler için
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # 30 gün hatırla
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)  # 3 ay hatırla
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 
@@ -72,6 +75,23 @@ def init_db():
             isim TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(pratik_tarih, lokasyon, telefon)
+        )
+    ''')
+    conn.run('''
+        CREATE TABLE IF NOT EXISTS kullanici_sifreler (
+            id SERIAL PRIMARY KEY,
+            telefon TEXT UNIQUE NOT NULL,
+            sifre_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.run('''
+        CREATE TABLE IF NOT EXISTS giris_denemeleri (
+            id SERIAL PRIMARY KEY,
+            telefon TEXT NOT NULL,
+            ip_adresi TEXT,
+            basarili BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     conn.close()
@@ -154,6 +174,67 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def hash_sifre(sifre):
+    """Şifreyi güvenli şekilde hashle"""
+    return sha256((sifre + 'swing-planet-salt-2024').encode()).hexdigest()
+
+def sifre_dogrula(sifre, sifre_hash):
+    """Şifreyi hash ile karşılaştır"""
+    return hash_sifre(sifre) == sifre_hash
+
+def kullanici_kilitli_mi(telefon):
+    """Son 15 dakikada 5+ başarısız deneme varsa kilitle"""
+    try:
+        conn = get_db()
+        rows = conn.run('''
+            SELECT COUNT(*) FROM giris_denemeleri 
+            WHERE telefon = :p1 
+            AND basarili = FALSE 
+            AND created_at > :p2
+        ''', p1=telefon, p2=(datetime.now() - timedelta(minutes=15)).isoformat())
+        conn.close()
+        return rows[0][0] >= 5
+    except:
+        return False
+
+def giris_denemesi_kaydet(telefon, ip_adresi, basarili):
+    """Giriş denemesini kaydet"""
+    try:
+        conn = get_db()
+        conn.run('''
+            INSERT INTO giris_denemeleri (telefon, ip_adresi, basarili) 
+            VALUES (:p1, :p2, :p3)
+        ''', p1=telefon, p2=ip_adresi, p3=basarili)
+        conn.close()
+    except:
+        pass
+
+def sifre_var_mi(telefon):
+    """Kullanıcının şifresi var mı kontrol et"""
+    try:
+        conn = get_db()
+        rows = conn.run('SELECT sifre_hash FROM kullanici_sifreler WHERE telefon = :p1', p1=telefon)
+        conn.close()
+        return rows[0][0] if rows else None
+    except:
+        return None
+
+def sifre_kaydet(telefon, sifre):
+    """Yeni şifre kaydet veya güncelle"""
+    try:
+        conn = get_db()
+        sifre_hash = hash_sifre(sifre)
+        try:
+            conn.run('INSERT INTO kullanici_sifreler (telefon, sifre_hash) VALUES (:p1, :p2)', 
+                    p1=telefon, p2=sifre_hash)
+        except:
+            conn.run('UPDATE kullanici_sifreler SET sifre_hash = :p1 WHERE telefon = :p2', 
+                    p1=sifre_hash, p2=telefon)
+        conn.close()
+        return True
+    except:
+        return False
+
 def saat_listesi_olustur(baslangic, bitis):
     saatler = []
     bas_saat, bas_dk = map(int, baslangic.split(':'))
@@ -226,31 +307,159 @@ Sevgiler ✨"""
 def giris():
     if 'telefon' in session:
         return redirect(url_for('takvim'))
-    return render_template('giris.html')
+    # CAPTCHA oluştur
+    sayi1 = random.randint(1, 10)
+    sayi2 = random.randint(1, 10)
+    session['captcha_cevap'] = sayi1 + sayi2
+    return render_template('giris.html', captcha_soru=f"{sayi1} + {sayi2}")
 
 @app.route('/login', methods=['POST'])
 def login():
     telefon = request.form.get('telefon', '').strip()
+    sifre = request.form.get('sifre', '').strip()
+    captcha = request.form.get('captcha', '').strip()
+    honeypot = request.form.get('website', '')  # Bot tuzağı - boş olmalı
+    ip_adresi = request.remote_addr
+    
+    # Bot kontrolü - honeypot dolu ise bot
+    if honeypot:
+        return render_template('giris.html', hata='Geçersiz istek', captcha_soru=yeni_captcha())
+    
+    # CAPTCHA kontrolü
+    try:
+        if int(captcha) != session.get('captcha_cevap'):
+            return render_template('giris.html', hata='Güvenlik sorusu yanlış', captcha_soru=yeni_captcha())
+    except:
+        return render_template('giris.html', hata='Güvenlik sorusunu cevaplayın', captcha_soru=yeni_captcha())
+    
+    # Telefon formatla
     telefon = telefon.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
     if telefon.startswith('+90'):
         telefon = telefon[3:]
     elif telefon.startswith('0'):
         telefon = telefon[1:]
-    if telefon in KULLANICILAR:
-        session['telefon'] = telefon
-        session['isim'] = KULLANICILAR[telefon]['isim']
-        session['admin'] = KULLANICILAR[telefon]['admin']
-        # Beni hatırla seçiliyse 30 gün boyunca oturumu koru
-        if request.form.get('hatirla'):
-            session.permanent = True
-        return redirect(url_for('takvim'))
-    else:
-        return render_template('giris.html', hata='Bu numara kayıtlı değil')
+    
+    # Kullanıcı kayıtlı mı?
+    if telefon not in KULLANICILAR:
+        return render_template('giris.html', hata='Bu numara kayıtlı değil', captcha_soru=yeni_captcha())
+    
+    # Hesap kilitli mi?
+    if kullanici_kilitli_mi(telefon):
+        return render_template('giris.html', hata='Çok fazla başarısız deneme. 15 dakika bekleyin.', captcha_soru=yeni_captcha())
+    
+    # Şifre var mı kontrol et
+    kayitli_sifre = sifre_var_mi(telefon)
+    
+    if not kayitli_sifre:
+        # İlk giriş - şifre belirleme sayfasına yönlendir
+        session['temp_telefon'] = telefon
+        return redirect(url_for('sifre_belirle'))
+    
+    # Şifre kontrolü
+    if not sifre:
+        return render_template('giris.html', hata='Şifre gerekli', telefon=telefon, captcha_soru=yeni_captcha())
+    
+    if not sifre_dogrula(sifre, kayitli_sifre):
+        giris_denemesi_kaydet(telefon, ip_adresi, False)
+        return render_template('giris.html', hata='Şifre hatalı', telefon=telefon, captcha_soru=yeni_captcha())
+    
+    # Başarılı giriş
+    giris_denemesi_kaydet(telefon, ip_adresi, True)
+    session['telefon'] = telefon
+    session['isim'] = KULLANICILAR[telefon]['isim']
+    session['admin'] = KULLANICILAR[telefon]['admin']
+    
+    if request.form.get('hatirla'):
+        session.permanent = True
+    
+    return redirect(url_for('takvim'))
+
+def yeni_captcha():
+    """Yeni CAPTCHA sorusu oluştur"""
+    sayi1 = random.randint(1, 10)
+    sayi2 = random.randint(1, 10)
+    session['captcha_cevap'] = sayi1 + sayi2
+    return f"{sayi1} + {sayi2}"
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('giris'))
+
+@app.route('/sifre-belirle')
+def sifre_belirle():
+    if 'temp_telefon' not in session:
+        return redirect(url_for('giris'))
+    telefon = session['temp_telefon']
+    isim = KULLANICILAR.get(telefon, {}).get('isim', '')
+    return render_template('sifre_belirle.html', isim=isim)
+
+@app.route('/sifre-kaydet', methods=['POST'])
+def sifre_kaydet_route():
+    if 'temp_telefon' not in session:
+        return redirect(url_for('giris'))
+    
+    telefon = session['temp_telefon']
+    sifre = request.form.get('sifre', '').strip()
+    sifre_tekrar = request.form.get('sifre_tekrar', '').strip()
+    
+    # Validasyon
+    if len(sifre) < 6:
+        return render_template('sifre_belirle.html', 
+                             isim=KULLANICILAR[telefon]['isim'],
+                             hata='Şifre en az 6 karakter olmalı')
+    
+    if sifre != sifre_tekrar:
+        return render_template('sifre_belirle.html', 
+                             isim=KULLANICILAR[telefon]['isim'],
+                             hata='Şifreler eşleşmiyor')
+    
+    # Şifreyi kaydet
+    if sifre_kaydet(telefon, sifre):
+        session.pop('temp_telefon', None)
+        session['telefon'] = telefon
+        session['isim'] = KULLANICILAR[telefon]['isim']
+        session['admin'] = KULLANICILAR[telefon]['admin']
+        session.permanent = True
+        return redirect(url_for('takvim'))
+    else:
+        return render_template('sifre_belirle.html', 
+                             isim=KULLANICILAR[telefon]['isim'],
+                             hata='Bir hata oluştu, tekrar deneyin')
+
+@app.route('/api/admin/sifre-sifirla', methods=['POST'])
+@login_required
+def admin_sifre_sifirla():
+    if not session.get('admin'):
+        return jsonify({'success': False, 'error': 'Yetkiniz yok'})
+    
+    data = request.json
+    telefon = data.get('telefon', '').strip()
+    
+    if telefon not in KULLANICILAR:
+        return jsonify({'success': False, 'error': 'Kullanıcı bulunamadı'})
+    
+    try:
+        conn = get_db()
+        conn.run('DELETE FROM kullanici_sifreler WHERE telefon = :p1', p1=telefon)
+        conn.close()
+        return jsonify({'success': True, 'mesaj': f'{KULLANICILAR[telefon]["isim"]} şifresi sıfırlandı'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/admin/sifre-durumu')
+@login_required
+def admin_sifre_durumu():
+    if not session.get('admin'):
+        return jsonify({'error': 'Yetkiniz yok'})
+    
+    try:
+        conn = get_db()
+        rows = conn.run('SELECT telefon FROM kullanici_sifreler')
+        conn.close()
+        return jsonify({'sifreli': [r[0] for r in rows]})
+    except Exception as e:
+        return jsonify({'sifreli': [], 'error': str(e)})
 
 @app.route('/takvim')
 @login_required
@@ -266,6 +475,13 @@ def pratik():
 @login_required
 def pratik_istatistik():
     return render_template('pratik_istatistik.html', isim=session['isim'], admin=session['admin'])
+
+@app.route('/admin')
+@login_required
+def admin_panel():
+    if not session.get('admin'):
+        return redirect(url_for('takvim'))
+    return render_template('admin.html', isim=session['isim'], admin=session['admin'], kullanicilar=KULLANICILAR)
 
 @app.route('/api/slotlar/<studyo>/<alan>/<tarih>')
 @login_required
