@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş - Swing Planet Stüdyo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .logo { width: 120px; margin-bottom: 20px; }
+        h1 {
+            color: #1a1a2e;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        .form-group label {
+            display: block;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 18px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .remember-me input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .remember-me label {
+            font-size: 14px;
+            color: #666;
+            cursor: pointer;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .hint {
+            margin-top: 20px;
+            color: #999;
+            font-size: 12px;
+        }
+        .forgot-link {
+            display: block;
+            margin-top: 15px;
+            color: #667eea;
+            font-size: 13px;
+            text-decoration: none;
+        }
+        .forgot-link:hover {
+            text-decoration: underline;
+        }
+        .hp-field {
+            position: absolute;
+            left: -9999px;
+        }
+        .captcha-group {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #667eea;
+        }
+        .captcha-group label {
+            color: #667eea;
+            font-weight: 500;
+        }
+        .captcha-group input {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 20px;
+            letter-spacing: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <img src="/static/logo.png" alt="Swing Planet" class="logo" onerror="this.style.display='none'">
+        <h1>Swing Planet Stüdyo</h1>
+        <p class="subtitle">Rezervasyon Sistemi & Pratik Anketi</p>
+        
+        {% if hata %}
+        <div class="error">{{ hata }}</div>
+        {% endif %}
+        
+        <form method="POST" action="/login">
+            <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off">
+            
+            <div class="form-group">
+                <label>Telefon Numarası</label>
+                <input type="tel" name="telefon" placeholder="5XX XXX XX XX" value="{{ telefon or '' }}" required autofocus>
+            </div>
+            <div class="form-group">
+                <label>Şifre</label>
+                <input type="password" name="sifre" placeholder="••••••••">
+                <small style="color: #999; font-size: 11px;">İlk girişte şifre belirlemeniz istenecek</small>
+            </div>
+            <div class="form-group captcha-group">
+                <label>🤖 Robot değilim: <strong>{{ captcha_soru }}</strong> = ?</label>
+                <input type="number" name="captcha" placeholder="Cevabı yazın" required>
+            </div>
+            <div class="remember-me">
+                <input type="checkbox" name="hatirla" id="hatirla" checked>
+                <label for="hatirla">Bu cihazda beni hatırla</label>
+            </div>
+            <button type="submit" class="btn-login">Giriş Yap</button>
+        </form>
+        
+        <a href="https://wa.me/905550001111?text=Merhaba,%20şifremi%20unuttum" class="forgot-link">Şifremi unuttum</a>
+        <p class="hint">Sadece kayıtlı ekip üyeleri giriş yapabilir</p>
+    </div>
+</body>
+</html>
