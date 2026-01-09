@@ -132,6 +132,21 @@ KULLANICILAR = {
     "5050230175": {"isim": "Beyza Yıldırım", "admin": False},
     "5066735330": {"isim": "Özge Aydın", "admin": False},
     "5068647964": {"isim": "Ceyda Dinç", "admin": False},
+    "5397834846": {"isim": "Büşra Aydoğanoğlu", "admin": False},
+    "5445360312": {"isim": "Leyla Özler", "admin": False},
+    "5465358679": {"isim": "Büşra Gül", "admin": False},
+    "5333737400": {"isim": "Burçin Torun", "admin": False},
+    "5434849161": {"isim": "Elif Atmaca", "admin": False},
+    "5543898154": {"isim": "Mehmet Yıldırım", "admin": False},
+    "5057710492": {"isim": "Ahmet Kızgın", "admin": False},
+    "5357717101": {"isim": "Süleyman Ufuk Eroğlu", "admin": False},
+    "5071299465": {"isim": "Onur Özdemir", "admin": False},
+    "5306653496": {"isim": "Erdem Eren", "admin": False},
+    "5317705515": {"isim": "Deniz Temizkan", "admin": False},
+    "5319478065": {"isim": "Sueda Yüceer", "admin": False},
+    "5312103619": {"isim": "Melike Gün", "admin": False},
+    "5334187526": {"isim": "Ezgi Tan", "admin": False},
+    "5052399493": {"isim": "Atalay Okun", "admin": False},
 }
 
 STUDYOLAR = {
