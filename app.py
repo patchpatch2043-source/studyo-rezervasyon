@@ -475,6 +475,32 @@ def api_rezervasyonlar(studyo, tarih):
         print(f"Hata: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/slotlar/<studyo>/<alan>/<tarih>')
+@login_required
+def api_slotlar(studyo, alan, tarih):
+    try:
+        conn = get_db()
+        rows = conn.run('SELECT saat, rezerve_eden, telefon, bloklu FROM rezervasyonlar WHERE studyo = :p1 AND alan = :p2 AND tarih = :p3', p1=studyo, p2=alan, p3=tarih)
+        conn.close()
+        
+        slotlar = {}
+        for row in rows:
+            slotlar[row[0]] = {
+                'rezerve_eden': row[1],
+                'telefon': row[2],
+                'bloklu': row[3]
+            }
+        
+        saatler = get_gun_saatleri(studyo, tarih)
+        
+        return jsonify({
+            'slotlar': slotlar,
+            'saatler': saatler
+        })
+    except Exception as e:
+        print(f"Hata: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/rezervasyon', methods=['POST'])
 @login_required
 def api_rezervasyon():
