@@ -439,7 +439,7 @@ def admin_sifre_durumu():
 @app.route('/takvim')
 @login_required
 def takvim():
-    return render_template('takvim.html', isim=session['isim'], admin=session['admin'])
+    return render_template('takvim.html', isim=session['isim'], admin=session['admin'], studyolar=STUDYOLAR)
 
 @app.route('/pratik')
 @login_required
