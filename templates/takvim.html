@@ -25,6 +25,7 @@
         .admin-badge { background: #ffd700; color: #1a1a2e; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
         .nav-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-size: 13px; text-decoration: none; margin-left: 10px; }
         .nav-btn.pratik { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .nav-btn.gorev { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
         
         .main-layout { display: flex; max-width: 1400px; margin: 0 auto; gap: 20px; padding: 20px; }
         .takvim-bolumu { flex: 1; min-width: 0; }
@@ -113,6 +114,9 @@
             {% if admin %}
             <span class="admin-badge">👑 Admin</span>
             <a href="/admin" class="nav-btn">⚙️ Yönetim</a>
+            {% endif %}
+            {% if gorev_erisim %}
+            <a href="/gorev-takip" class="nav-btn gorev">📋 Görevler</a>
             {% endif %}
             <a href="/pratik" class="nav-btn pratik">🗳️ Pratik Anketi</a>
             <a href="/logout" class="nav-btn">Çıkış</a>
