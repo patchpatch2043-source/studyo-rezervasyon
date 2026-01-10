@@ -94,26 +94,6 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    conn.run('''
-        CREATE TABLE IF NOT EXISTS gorevler (
-            id SERIAL PRIMARY KEY,
-            baslik TEXT NOT NULL,
-            durum TEXT DEFAULT 'bekliyor',
-            olusturan TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.run('''
-        CREATE TABLE IF NOT EXISTS gorev_notlar (
-            id SERIAL PRIMARY KEY,
-            gorev_id INTEGER REFERENCES gorevler(id) ON DELETE CASCADE,
-            yazar TEXT NOT NULL,
-            yazar_isim TEXT NOT NULL,
-            not_text TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
     conn.close()
 
 try:
@@ -168,12 +148,6 @@ KULLANICILAR = {
     "5334187526": {"isim": "Ezgi Tan", "admin": False},
     "5052399493": {"isim": "Atalay Okun", "admin": False},
     "5352041658": {"isim": "Mustafa Kemal Doğançay", "admin": False},
-}
-
-# Görev Takip - Sadece bu kişiler erişebilir
-GOREV_ERISIM = {
-    "5554128946": "admin",      # Uğur Altun
-    "5352041658": "kullanici",  # Mustafa Kemal Doğançay
 }
 
 STUDYOLAR = {
@@ -383,8 +357,7 @@ def sifre_kaydet_route():
 @app.route('/takvim')
 @login_required
 def takvim():
-    gorev_erisim = session.get('telefon') in GOREV_ERISIM
-    return render_template('takvim.html', isim=session['isim'], admin=session['admin'], studyolar=STUDYOLAR, gorev_erisim=gorev_erisim)
+    return render_template('takvim.html', isim=session['isim'], admin=session['admin'], studyolar=STUDYOLAR)
 
 @app.route('/pratik')
 @login_required
@@ -436,186 +409,6 @@ def admin_sifre_durumu():
         return jsonify({'sifreli': [r[0] for r in rows]})
     except Exception as e:
         return jsonify({'sifreli': [], 'error': str(e)})
-
-# ==================== GÖREV TAKİP ====================
-
-@app.route('/gorev-takip')
-@login_required
-def gorev_takip():
-    telefon = session.get('telefon')
-    if telefon not in GOREV_ERISIM:
-        return redirect(url_for('takvim'))
-    
-    rol = GOREV_ERISIM[telefon]
-    return render_template('gorev_takip.html', isim=session['isim'], rol=rol)
-
-@app.route('/api/gorevler')
-@login_required
-def api_gorevler():
-    telefon = session.get('telefon')
-    if telefon not in GOREV_ERISIM:
-        return jsonify({'error': 'Yetkiniz yok'}), 403
-    
-    try:
-        conn = get_db()
-        gorevler = conn.run('''
-            SELECT id, baslik, durum, created_at, updated_at 
-            FROM gorevler 
-            ORDER BY 
-                CASE durum 
-                    WHEN 'bekliyor' THEN 1 
-                    WHEN 'yapildi_iddia' THEN 2 
-                    WHEN 'tamamlandi' THEN 3 
-                END,
-                created_at DESC
-        ''')
-        
-        result = []
-        for g in gorevler:
-            notlar = conn.run('''
-                SELECT yazar, yazar_isim, not_text, created_at 
-                FROM gorev_notlar 
-                WHERE gorev_id = :p1 
-                ORDER BY created_at ASC
-            ''', p1=g[0])
-            
-            result.append({
-                'id': g[0],
-                'baslik': g[1],
-                'durum': g[2],
-                'tarih': g[3].strftime('%Y-%m-%d') if g[3] else '',
-                'notlar': [{
-                    'yazar': n[0],
-                    'yazar_isim': n[1],
-                    'text': n[2],
-                    'zaman': n[3].strftime('%H:%M') if n[3] else ''
-                } for n in notlar]
-            })
-        
-        conn.close()
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/gorev-ekle', methods=['POST'])
-@login_required
-def api_gorev_ekle():
-    telefon = session.get('telefon')
-    if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
-        return jsonify({'error': 'Yetkiniz yok'}), 403
-    
-    data = request.json
-    baslik = data.get('baslik', '').strip()
-    
-    if not baslik:
-        return jsonify({'error': 'Görev başlığı gerekli'}), 400
-    
-    try:
-        conn = get_db()
-        conn.run('INSERT INTO gorevler (baslik, olusturan) VALUES (:p1, :p2)', p1=baslik, p2=telefon)
-        conn.close()
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/gorev-tick', methods=['POST'])
-@login_required
-def api_gorev_tick():
-    telefon = session.get('telefon')
-    if telefon not in GOREV_ERISIM:
-        return jsonify({'error': 'Yetkiniz yok'}), 403
-    
-    data = request.json
-    gorev_id = data.get('gorev_id')
-    
-    try:
-        conn = get_db()
-        conn.run('UPDATE gorevler SET durum = :p1, updated_at = CURRENT_TIMESTAMP WHERE id = :p2', p1='yapildi_iddia', p2=gorev_id)
-        conn.close()
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/gorev-onayla', methods=['POST'])
-@login_required
-def api_gorev_onayla():
-    telefon = session.get('telefon')
-    if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
-        return jsonify({'error': 'Yetkiniz yok'}), 403
-    
-    data = request.json
-    gorev_id = data.get('gorev_id')
-    
-    try:
-        conn = get_db()
-        conn.run('UPDATE gorevler SET durum = :p1, updated_at = CURRENT_TIMESTAMP WHERE id = :p2', p1='tamamlandi', p2=gorev_id)
-        conn.close()
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/gorev-reddet', methods=['POST'])
-@login_required
-def api_gorev_reddet():
-    telefon = session.get('telefon')
-    if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
-        return jsonify({'error': 'Yetkiniz yok'}), 403
-    
-    data = request.json
-    gorev_id = data.get('gorev_id')
-    
-    try:
-        conn = get_db()
-        conn.run('UPDATE gorevler SET durum = :p1, updated_at = CURRENT_TIMESTAMP WHERE id = :p2', p1='bekliyor', p2=gorev_id)
-        conn.close()
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/gorev-not-ekle', methods=['POST'])
-@login_required
-def api_gorev_not_ekle():
-    telefon = session.get('telefon')
-    if telefon not in GOREV_ERISIM:
-        return jsonify({'error': 'Yetkiniz yok'}), 403
-    
-    data = request.json
-    gorev_id = data.get('gorev_id')
-    not_text = data.get('not', '').strip()
-    
-    if not not_text:
-        return jsonify({'error': 'Not boş olamaz'}), 400
-    
-    rol = GOREV_ERISIM[telefon]
-    
-    try:
-        conn = get_db()
-        conn.run('INSERT INTO gorev_notlar (gorev_id, yazar, yazar_isim, not_text) VALUES (:p1, :p2, :p3, :p4)', 
-                p1=gorev_id, p2=rol, p3=session['isim'], p4=not_text)
-        conn.run('UPDATE gorevler SET updated_at = CURRENT_TIMESTAMP WHERE id = :p1', p1=gorev_id)
-        conn.close()
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/gorev-sil', methods=['POST'])
-@login_required
-def api_gorev_sil():
-    telefon = session.get('telefon')
-    if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
-        return jsonify({'error': 'Yetkiniz yok'}), 403
-    
-    data = request.json
-    gorev_id = data.get('gorev_id')
-    
-    try:
-        conn = get_db()
-        conn.run('DELETE FROM gorev_notlar WHERE gorev_id = :p1', p1=gorev_id)
-        conn.run('DELETE FROM gorevler WHERE id = :p1', p1=gorev_id)
-        conn.close()
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 # ==================== REZERVASYON API ====================
 
