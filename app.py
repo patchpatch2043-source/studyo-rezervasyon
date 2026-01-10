@@ -10,8 +10,8 @@ import random
 
 app = Flask(__name__)
 app.secret_key = 'swing-planet-2024-secret-key'
-app.config['JSON_AS_ASCII'] = False  # Türkçe karakterler için
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)  # 3 ay hatırla
+app.config['JSON_AS_ASCII'] = False
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 
@@ -94,7 +94,6 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    # Görev Takip Tabloları
     conn.run('''
         CREATE TABLE IF NOT EXISTS gorevler (
             id SERIAL PRIMARY KEY,
@@ -198,12 +197,12 @@ STUDYOLAR = {
 
 PRATIK_BILGI = {
     'sisli': {
-        'gun': 2,  # Çarşamba
+        'gun': 2,
         'saat': '20.30 - 22.30',
         'yer': 'Şişli Bomonti'
     },
     'kadikoy': {
-        'gun': 4,  # Cuma
+        'gun': 4,
         'saat': '20.45 - 22.30',
         'yer': 'Kadıköy'
     }
@@ -218,15 +217,12 @@ def login_required(f):
     return decorated_function
 
 def hash_sifre(sifre):
-    """Şifreyi güvenli şekilde hashle"""
     return sha256((sifre + 'swing-planet-salt-2024').encode()).hexdigest()
 
 def sifre_dogrula(sifre, sifre_hash):
-    """Şifreyi hash ile karşılaştır"""
     return hash_sifre(sifre) == sifre_hash
 
 def kullanici_kilitli_mi(telefon):
-    """Son 15 dakikada 5+ başarısız deneme varsa kilitle"""
     try:
         conn = get_db()
         rows = conn.run('''
@@ -241,7 +237,6 @@ def kullanici_kilitli_mi(telefon):
         return False
 
 def giris_denemesi_kaydet(telefon, ip_adresi, basarili):
-    """Giriş denemesini kaydet"""
     try:
         conn = get_db()
         conn.run('''
@@ -253,7 +248,6 @@ def giris_denemesi_kaydet(telefon, ip_adresi, basarili):
         pass
 
 def sifre_var_mi(telefon):
-    """Kullanıcının şifresi var mı kontrol et"""
     try:
         conn = get_db()
         rows = conn.run('SELECT sifre_hash FROM kullanici_sifreler WHERE telefon = :p1', p1=telefon)
@@ -263,7 +257,6 @@ def sifre_var_mi(telefon):
         return None
 
 def sifre_kaydet(telefon, sifre):
-    """Yeni şifre kaydet veya güncelle"""
     try:
         conn = get_db()
         sifre_hash = hash_sifre(sifre)
@@ -279,7 +272,6 @@ def sifre_kaydet(telefon, sifre):
         return False
 
 def yeni_captcha():
-    """Yeni CAPTCHA sorusu oluştur"""
     sayi1 = random.randint(1, 10)
     sayi2 = random.randint(1, 10)
     session['captcha_cevap'] = sayi1 + sayi2
@@ -289,55 +281,44 @@ def yeni_captcha():
 def giris():
     if 'telefon' in session:
         return redirect(url_for('takvim'))
-    # CAPTCHA oluştur
-    sayi1 = random.randint(1, 10)
-    sayi2 = random.randint(1, 10)
-    session['captcha_cevap'] = sayi1 + sayi2
-    return render_template('giris.html', captcha_soru=f"{sayi1} + {sayi2}")
+    captcha_soru = yeni_captcha()
+    return render_template('giris.html', captcha_soru=captcha_soru)
 
 @app.route('/login', methods=['POST'])
 def login():
     telefon = request.form.get('telefon', '').strip()
     sifre = request.form.get('sifre', '').strip()
     captcha = request.form.get('captcha', '').strip()
-    honeypot = request.form.get('website', '')  # Bot tuzağı - boş olmalı
+    honeypot = request.form.get('website', '')
     ip_adresi = request.remote_addr
     
-    # Bot kontrolü - honeypot dolu ise bot
     if honeypot:
         return render_template('giris.html', hata='Geçersiz istek', captcha_soru=yeni_captcha())
     
-    # CAPTCHA kontrolü
     try:
         if int(captcha) != session.get('captcha_cevap'):
             return render_template('giris.html', hata='Güvenlik sorusu yanlış', captcha_soru=yeni_captcha())
     except:
         return render_template('giris.html', hata='Güvenlik sorusunu cevaplayın', captcha_soru=yeni_captcha())
     
-    # Telefon formatla
     telefon = telefon.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
     if telefon.startswith('+90'):
         telefon = telefon[3:]
     elif telefon.startswith('0'):
         telefon = telefon[1:]
     
-    # Kullanıcı kayıtlı mı?
     if telefon not in KULLANICILAR:
         return render_template('giris.html', hata='Bu numara kayıtlı değil', captcha_soru=yeni_captcha())
     
-    # Hesap kilitli mi?
     if kullanici_kilitli_mi(telefon):
         return render_template('giris.html', hata='Çok fazla başarısız deneme. 15 dakika bekleyin.', captcha_soru=yeni_captcha())
     
-    # Şifre var mı kontrol et
     kayitli_sifre = sifre_var_mi(telefon)
     
     if not kayitli_sifre:
-        # İlk giriş - şifre belirleme sayfasına yönlendir
         session['temp_telefon'] = telefon
         return redirect(url_for('sifre_belirle'))
     
-    # Şifre kontrolü
     if not sifre:
         return render_template('giris.html', hata='Şifre gerekli', telefon=telefon, captcha_soru=yeni_captcha())
     
@@ -345,7 +326,6 @@ def login():
         giris_denemesi_kaydet(telefon, ip_adresi, False)
         return render_template('giris.html', hata='Şifre hatalı', telefon=telefon, captcha_soru=yeni_captcha())
     
-    # Başarılı giriş
     giris_denemesi_kaydet(telefon, ip_adresi, True)
     session['telefon'] = telefon
     session['isim'] = KULLANICILAR[telefon]['isim']
@@ -378,7 +358,6 @@ def sifre_kaydet_route():
     sifre = request.form.get('sifre', '').strip()
     sifre_tekrar = request.form.get('sifre_tekrar', '').strip()
     
-    # Validasyon
     if len(sifre) < 6:
         return render_template('sifre_belirle.html', 
                              isim=KULLANICILAR[telefon]['isim'],
@@ -389,7 +368,6 @@ def sifre_kaydet_route():
                              isim=KULLANICILAR[telefon]['isim'],
                              hata='Şifreler eşleşmiyor')
     
-    # Şifreyi kaydet
     if sifre_kaydet(telefon, sifre):
         session.pop('temp_telefon', None)
         session['telefon'] = telefon
@@ -401,6 +379,29 @@ def sifre_kaydet_route():
         return render_template('sifre_belirle.html', 
                              isim=KULLANICILAR[telefon]['isim'],
                              hata='Bir hata oluştu, tekrar deneyin')
+
+@app.route('/takvim')
+@login_required
+def takvim():
+    gorev_erisim = session.get('telefon') in GOREV_ERISIM
+    return render_template('takvim.html', isim=session['isim'], admin=session['admin'], studyolar=STUDYOLAR, gorev_erisim=gorev_erisim)
+
+@app.route('/pratik')
+@login_required
+def pratik():
+    return render_template('pratik.html', isim=session['isim'], admin=session['admin'])
+
+@app.route('/pratik-istatistik')
+@login_required
+def pratik_istatistik():
+    return render_template('pratik_istatistik.html', isim=session['isim'], admin=session['admin'])
+
+@app.route('/admin')
+@login_required
+def admin_panel():
+    if not session.get('admin'):
+        return redirect(url_for('takvim'))
+    return render_template('admin.html', isim=session['isim'], admin=session['admin'], kullanicilar=KULLANICILAR)
 
 @app.route('/api/admin/sifre-sifirla', methods=['POST'])
 @login_required
@@ -436,34 +437,12 @@ def admin_sifre_durumu():
     except Exception as e:
         return jsonify({'sifreli': [], 'error': str(e)})
 
-@app.route('/takvim')
-@login_required
-def takvim():
-    return render_template('takvim.html', isim=session['isim'], admin=session['admin'], studyolar=STUDYOLAR)
-
-@app.route('/pratik')
-@login_required
-def pratik():
-    return render_template('pratik.html', isim=session['isim'], admin=session['admin'])
-
-@app.route('/pratik-istatistik')
-@login_required
-def pratik_istatistik():
-    return render_template('pratik_istatistik.html', isim=session['isim'], admin=session['admin'])
-
-@app.route('/admin')
-@login_required
-def admin_panel():
-    if not session.get('admin'):
-        return redirect(url_for('takvim'))
-    return render_template('admin.html', isim=session['isim'], admin=session['admin'], kullanicilar=KULLANICILAR)
-
 # ==================== GÖREV TAKİP ====================
 
 @app.route('/gorev-takip')
 @login_required
 def gorev_takip():
-    telefon = session['telefon']
+    telefon = session.get('telefon')
     if telefon not in GOREV_ERISIM:
         return redirect(url_for('takvim'))
     
@@ -473,7 +452,7 @@ def gorev_takip():
 @app.route('/api/gorevler')
 @login_required
 def api_gorevler():
-    telefon = session['telefon']
+    telefon = session.get('telefon')
     if telefon not in GOREV_ERISIM:
         return jsonify({'error': 'Yetkiniz yok'}), 403
     
@@ -521,7 +500,7 @@ def api_gorevler():
 @app.route('/api/gorev-ekle', methods=['POST'])
 @login_required
 def api_gorev_ekle():
-    telefon = session['telefon']
+    telefon = session.get('telefon')
     if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
         return jsonify({'error': 'Yetkiniz yok'}), 403
     
@@ -533,10 +512,7 @@ def api_gorev_ekle():
     
     try:
         conn = get_db()
-        conn.run('''
-            INSERT INTO gorevler (baslik, olusturan) 
-            VALUES (:p1, :p2)
-        ''', p1=baslik, p2=session['telefon'])
+        conn.run('INSERT INTO gorevler (baslik, olusturan) VALUES (:p1, :p2)', p1=baslik, p2=telefon)
         conn.close()
         return jsonify({'success': True})
     except Exception as e:
@@ -545,7 +521,7 @@ def api_gorev_ekle():
 @app.route('/api/gorev-tick', methods=['POST'])
 @login_required
 def api_gorev_tick():
-    telefon = session['telefon']
+    telefon = session.get('telefon')
     if telefon not in GOREV_ERISIM:
         return jsonify({'error': 'Yetkiniz yok'}), 403
     
@@ -554,11 +530,7 @@ def api_gorev_tick():
     
     try:
         conn = get_db()
-        conn.run('''
-            UPDATE gorevler 
-            SET durum = 'yapildi_iddia', updated_at = CURRENT_TIMESTAMP 
-            WHERE id = :p1
-        ''', p1=gorev_id)
+        conn.run('UPDATE gorevler SET durum = :p1, updated_at = CURRENT_TIMESTAMP WHERE id = :p2', p1='yapildi_iddia', p2=gorev_id)
         conn.close()
         return jsonify({'success': True})
     except Exception as e:
@@ -567,7 +539,7 @@ def api_gorev_tick():
 @app.route('/api/gorev-onayla', methods=['POST'])
 @login_required
 def api_gorev_onayla():
-    telefon = session['telefon']
+    telefon = session.get('telefon')
     if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
         return jsonify({'error': 'Yetkiniz yok'}), 403
     
@@ -576,11 +548,7 @@ def api_gorev_onayla():
     
     try:
         conn = get_db()
-        conn.run('''
-            UPDATE gorevler 
-            SET durum = 'tamamlandi', updated_at = CURRENT_TIMESTAMP 
-            WHERE id = :p1
-        ''', p1=gorev_id)
+        conn.run('UPDATE gorevler SET durum = :p1, updated_at = CURRENT_TIMESTAMP WHERE id = :p2', p1='tamamlandi', p2=gorev_id)
         conn.close()
         return jsonify({'success': True})
     except Exception as e:
@@ -589,7 +557,7 @@ def api_gorev_onayla():
 @app.route('/api/gorev-reddet', methods=['POST'])
 @login_required
 def api_gorev_reddet():
-    telefon = session['telefon']
+    telefon = session.get('telefon')
     if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
         return jsonify({'error': 'Yetkiniz yok'}), 403
     
@@ -598,11 +566,7 @@ def api_gorev_reddet():
     
     try:
         conn = get_db()
-        conn.run('''
-            UPDATE gorevler 
-            SET durum = 'bekliyor', updated_at = CURRENT_TIMESTAMP 
-            WHERE id = :p1
-        ''', p1=gorev_id)
+        conn.run('UPDATE gorevler SET durum = :p1, updated_at = CURRENT_TIMESTAMP WHERE id = :p2', p1='bekliyor', p2=gorev_id)
         conn.close()
         return jsonify({'success': True})
     except Exception as e:
@@ -611,7 +575,7 @@ def api_gorev_reddet():
 @app.route('/api/gorev-not-ekle', methods=['POST'])
 @login_required
 def api_gorev_not_ekle():
-    telefon = session['telefon']
+    telefon = session.get('telefon')
     if telefon not in GOREV_ERISIM:
         return jsonify({'error': 'Yetkiniz yok'}), 403
     
@@ -626,15 +590,9 @@ def api_gorev_not_ekle():
     
     try:
         conn = get_db()
-        conn.run('''
-            INSERT INTO gorev_notlar (gorev_id, yazar, yazar_isim, not_text) 
-            VALUES (:p1, :p2, :p3, :p4)
-        ''', p1=gorev_id, p2=rol, p3=session['isim'], p4=not_text)
-        
-        conn.run('''
-            UPDATE gorevler SET updated_at = CURRENT_TIMESTAMP WHERE id = :p1
-        ''', p1=gorev_id)
-        
+        conn.run('INSERT INTO gorev_notlar (gorev_id, yazar, yazar_isim, not_text) VALUES (:p1, :p2, :p3, :p4)', 
+                p1=gorev_id, p2=rol, p3=session['isim'], p4=not_text)
+        conn.run('UPDATE gorevler SET updated_at = CURRENT_TIMESTAMP WHERE id = :p1', p1=gorev_id)
         conn.close()
         return jsonify({'success': True})
     except Exception as e:
@@ -643,7 +601,7 @@ def api_gorev_not_ekle():
 @app.route('/api/gorev-sil', methods=['POST'])
 @login_required
 def api_gorev_sil():
-    telefon = session['telefon']
+    telefon = session.get('telefon')
     if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
         return jsonify({'error': 'Yetkiniz yok'}), 403
     
@@ -681,9 +639,9 @@ def get_gun_saatleri(studyo, tarih):
     gun = tarih_obj.weekday()
     studyo_bilgi = STUDYOLAR[studyo]
     
-    if gun < 5:  # Hafta içi
+    if gun < 5:
         saat_bilgi = studyo_bilgi['saatler']['hafta_ici']
-    else:  # Hafta sonu
+    else:
         saat_bilgi = studyo_bilgi['saatler']['hafta_sonu']
     
     return saat_listesi_olustur(saat_bilgi['baslangic'], saat_bilgi['bitis'])
@@ -736,20 +694,16 @@ def api_rezervasyon():
         
         conn = get_db()
         
-        # Önce mevcut durumu kontrol et
         rows = conn.run('SELECT rezerve_eden, bloklu FROM rezervasyonlar WHERE studyo = :p1 AND alan = :p2 AND tarih = :p3 AND saat = :p4', 
                        p1=studyo, p2=alan, p3=tarih, p4=saat)
         
         if rows:
-            # Kayıt var
             mevcut = rows[0]
-            if mevcut[1]:  # Bloklu
+            if mevcut[1]:
                 conn.close()
                 return jsonify({'success': False, 'error': 'Bu slot bloklanmış'})
             elif mevcut[0]:
-                # Zaten rezerve edilmiş
                 if mevcut[0] == session['isim']:
-                    # Kendi rezervasyonunu iptal et
                     conn.run('DELETE FROM rezervasyonlar WHERE studyo = :p1 AND alan = :p2 AND tarih = :p3 AND saat = :p4', 
                             p1=studyo, p2=alan, p3=tarih, p4=saat)
                     conn.run('INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (:p1, :p2, :p3, :p4, :p5, :p6)',
@@ -760,7 +714,6 @@ def api_rezervasyon():
                     conn.close()
                     return jsonify({'success': False, 'error': f"Bu slot {mevcut[0]} tarafından rezerve edilmiş"})
         
-        # Yeni rezervasyon yap
         try:
             conn.run('INSERT INTO rezervasyonlar (studyo, alan, tarih, saat, rezerve_eden, telefon) VALUES (:p1, :p2, :p3, :p4, :p5, :p6)',
                     p1=studyo, p2=alan, p3=tarih, p4=saat, p5=session['isim'], p6=session['telefon'])
@@ -858,25 +811,20 @@ def toplu_blok():
 # ==================== PRATİK ANKETİ ====================
 
 def anket_aktif_mi(lokasyon):
-    """Pratik anketi aktif mi kontrol et"""
     pratik_gun = PRATIK_BILGI[lokasyon]['gun']
     bugun = datetime.now().date()
     bugun_gun = bugun.weekday()
     
-    # Bu haftaki pratik gününü bul
     gun_farki = pratik_gun - bugun_gun
     if gun_farki < 0:
         gun_farki += 7
     
     pratik_tarihi = bugun + timedelta(days=gun_farki)
-    
-    # Anket pratik gününden 5 gün önce açılır, pratik saatinde kapanır
     anket_baslangic = pratik_tarihi - timedelta(days=5)
     
     return bugun >= anket_baslangic and bugun <= pratik_tarihi, pratik_tarihi
 
 def pratik_mesaji_olustur(lokasyon, evet_listesi):
-    """WhatsApp için pratik mesajı oluştur"""
     aktif, pratik_tarihi = anket_aktif_mi(lokasyon)
     
     gun_isimleri = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
@@ -902,7 +850,6 @@ def pratik_mesaji_olustur(lokasyon, evet_listesi):
 @app.route('/api/pratik/durum')
 @login_required
 def pratik_durum():
-    """Her iki lokasyon için anket durumu"""
     try:
         sonuc = {}
         conn = get_db()
@@ -911,12 +858,10 @@ def pratik_durum():
             aktif, pratik_tarihi = anket_aktif_mi(lokasyon)
             tarih_str = pratik_tarihi.strftime('%Y-%m-%d')
             
-            # Kullanıcının cevabı
             rows = conn.run('SELECT cevap FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND telefon = :p3', 
                           p1=tarih_str, p2=lokasyon, p3=session['telefon'])
             kullanici_cevap = rows[0][0] if rows else None
             
-            # Tüm cevaplar
             evet_rows = conn.run('SELECT isim FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND cevap = :p3 ORDER BY created_at', 
                                p1=tarih_str, p2=lokasyon, p3='evet')
             hayir_rows = conn.run('SELECT isim FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND cevap = :p3 ORDER BY created_at', 
@@ -956,11 +901,10 @@ def pratik_durum():
 @app.route('/api/pratik/oyla', methods=['POST'])
 @login_required
 def pratik_oyla():
-    """Pratik anketi oylama"""
     try:
         data = request.json
         lokasyon = data['lokasyon']
-        cevap = data['cevap']  # 'evet' veya 'hayir'
+        cevap = data['cevap']
         
         aktif, pratik_tarihi = anket_aktif_mi(lokasyon)
         if not aktif:
@@ -970,21 +914,18 @@ def pratik_oyla():
         
         conn = get_db()
         
-        # Önceki cevabı sil
         conn.run('DELETE FROM pratik_anket WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND telefon = :p3',
                 p1=tarih_str, p2=lokasyon, p3=session['telefon'])
         
-        # Yeni cevap ekle
         conn.run('INSERT INTO pratik_anket (pratik_tarih, lokasyon, telefon, isim, cevap) VALUES (:p1, :p2, :p3, :p4, :p5)',
                 p1=tarih_str, p2=lokasyon, p3=session['telefon'], p4=session['isim'], p5=cevap)
         
-        # Eğer evet ise görevli tablosuna da ekle
         if cevap == 'evet':
             try:
                 conn.run('INSERT INTO pratik_gorevli (pratik_tarih, lokasyon, telefon, isim) VALUES (:p1, :p2, :p3, :p4)',
                         p1=tarih_str, p2=lokasyon, p3=session['telefon'], p4=session['isim'])
             except:
-                pass  # Zaten var
+                pass
         else:
             conn.run('DELETE FROM pratik_gorevli WHERE pratik_tarih = :p1 AND lokasyon = :p2 AND telefon = :p3',
                     p1=tarih_str, p2=lokasyon, p3=session['telefon'])
@@ -999,11 +940,9 @@ def pratik_oyla():
 @app.route('/api/pratik/istatistik')
 @login_required
 def pratik_istatistik_api():
-    """Pratik görevli istatistikleri"""
     try:
         conn = get_db()
         
-        # Şişli istatistikleri
         sisli_rows = conn.run('''
             SELECT isim, COUNT(*) as sayi 
             FROM pratik_gorevli 
@@ -1012,7 +951,6 @@ def pratik_istatistik_api():
             ORDER BY sayi DESC, isim
         ''', p1='sisli')
         
-        # Kadıköy istatistikleri
         kadikoy_rows = conn.run('''
             SELECT isim, COUNT(*) as sayi 
             FROM pratik_gorevli 
@@ -1021,7 +959,6 @@ def pratik_istatistik_api():
             ORDER BY sayi DESC, isim
         ''', p1='kadikoy')
         
-        # Toplam istatistikler
         toplam_rows = conn.run('''
             SELECT isim, COUNT(*) as sayi 
             FROM pratik_gorevli 
@@ -1029,7 +966,6 @@ def pratik_istatistik_api():
             ORDER BY sayi DESC, isim
         ''')
         
-        # Son pratikler
         son_pratikler = conn.run('''
             SELECT pratik_tarih, lokasyon, isim 
             FROM pratik_gorevli 
