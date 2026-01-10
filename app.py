@@ -904,7 +904,7 @@ def api_gorevler():
 @login_required
 def api_gorev_ekle():
     telefon = session.get('telefon')
-    if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
+    if telefon not in GOREV_ERISIM:
         return jsonify({'error': 'Yetkiniz yok'}), 403
     data = request.json
     baslik = data.get('baslik', '').strip()
