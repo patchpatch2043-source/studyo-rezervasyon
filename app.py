@@ -506,7 +506,8 @@ def admin_sifre_durumu():
 @app.route('/takvim')
 @login_required
 def takvim():
-    return render_template('takvim.html', isim=session['isim'], admin=session['admin'], studyolar=STUDYOLAR)
+    gorev_erisim = session.get('telefon') in GOREV_ERISIM
+    return render_template('takvim.html', isim=session['isim'], admin=session['admin'], studyolar=STUDYOLAR, gorev_erisim=gorev_erisim)
 
 @app.route('/pratik')
 @login_required
