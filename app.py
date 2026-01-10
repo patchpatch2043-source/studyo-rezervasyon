@@ -94,6 +94,27 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    # Görev Takip Tabloları
+    conn.run('''
+        CREATE TABLE IF NOT EXISTS gorevler (
+            id SERIAL PRIMARY KEY,
+            baslik TEXT NOT NULL,
+            durum TEXT DEFAULT 'bekliyor',
+            olusturan TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.run('''
+        CREATE TABLE IF NOT EXISTS gorev_notlar (
+            id SERIAL PRIMARY KEY,
+            gorev_id INTEGER REFERENCES gorevler(id) ON DELETE CASCADE,
+            yazar TEXT NOT NULL,
+            yazar_isim TEXT NOT NULL,
+            not_text TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.close()
 
 try:
@@ -147,6 +168,13 @@ KULLANICILAR = {
     "5312103619": {"isim": "Melike Gün", "admin": False},
     "5334187526": {"isim": "Ezgi Tan", "admin": False},
     "5052399493": {"isim": "Atalay Okun", "admin": False},
+    "5352041658": {"isim": "Mustafa Kemal Doğançay", "admin": False},
+}
+
+# Görev Takip - Sadece bu kişiler erişebilir
+GOREV_ERISIM = {
+    "5554128946": "admin",      # Uğur Altun
+    "5352041658": "kullanici",  # Mustafa Kemal Doğançay
 }
 
 STUDYOLAR = {
@@ -250,73 +278,12 @@ def sifre_kaydet(telefon, sifre):
     except:
         return False
 
-def saat_listesi_olustur(baslangic, bitis):
-    saatler = []
-    bas_saat, bas_dk = map(int, baslangic.split(':'))
-    bit_saat, bit_dk = map(int, bitis.split(':'))
-    current = bas_saat * 60 + bas_dk
-    end = bit_saat * 60 + bit_dk
-    while current < end:
-        saat = f"{current // 60:02d}:{current % 60:02d}"
-        saatler.append(saat)
-        current += 30
-    return saatler
-
-def get_pratik_tarihi(lokasyon):
-    """Bu haftanın pratik tarihini bul"""
-    bugun = datetime.now().date()
-    hedef_gun = PRATIK_BILGI[lokasyon]['gun']
-    
-    # Bu haftanın pazartesisi
-    pazartesi = bugun - timedelta(days=bugun.weekday())
-    
-    # Bu haftanın pratik günü
-    pratik_tarihi = pazartesi + timedelta(days=hedef_gun)
-    
-    return pratik_tarihi
-
-def anket_aktif_mi(lokasyon):
-    """Anket aktif mi kontrol et"""
-    now = datetime.now()
-    bugun = now.date()
-    
-    # Bu haftanın pazartesisi
-    pazartesi = bugun - timedelta(days=bugun.weekday())
-    
-    pratik_tarihi = get_pratik_tarihi(lokasyon)
-    
-    # Pazartesi 00:00'dan pratik günü 23:59'a kadar açık
-    if pazartesi <= bugun <= pratik_tarihi:
-        return True, pratik_tarihi
-    
-    return False, pratik_tarihi
-
-def pratik_mesaji_olustur(lokasyon, gorevliler):
-    """WhatsApp mesajı oluştur"""
-    pratik_tarihi = get_pratik_tarihi(lokasyon)
-    bilgi = PRATIK_BILGI[lokasyon]
-    
-    gun_isimleri = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
-    ay_isimleri = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
-                   'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
-    
-    gun_adi = gun_isimleri[pratik_tarihi.weekday()]
-    tarih_str = f"{pratik_tarihi.day} {ay_isimleri[pratik_tarihi.month - 1]}"
-    
-    gorevli_listesi = list(gorevliler)
-    
-    if lokasyon == 'sisli':
-        gorevli_listesi = ['Uğur Altun'] + gorevli_listesi
-    
-    gorevli_str = ', '.join(gorevli_listesi) if gorevli_listesi else 'Henüz belli değil'
-    
-    mesaj = f"""Bugün, {tarih_str} {gun_adi}, saat {bilgi['saat']} saatleri arası {bilgi['yer']}'de pratik yapabilirsiniz.
-
-Pratik görevlileri: {gorevli_str}.
-
-Sevgiler ✨"""
-    
-    return mesaj
+def yeni_captcha():
+    """Yeni CAPTCHA sorusu oluştur"""
+    sayi1 = random.randint(1, 10)
+    sayi2 = random.randint(1, 10)
+    session['captcha_cevap'] = sayi1 + sayi2
+    return f"{sayi1} + {sayi2}"
 
 @app.route('/')
 def giris():
@@ -388,13 +355,6 @@ def login():
         session.permanent = True
     
     return redirect(url_for('takvim'))
-
-def yeni_captcha():
-    """Yeni CAPTCHA sorusu oluştur"""
-    sayi1 = random.randint(1, 10)
-    sayi2 = random.randint(1, 10)
-    session['captcha_cevap'] = sayi1 + sayi2
-    return f"{sayi1} + {sayi2}"
 
 @app.route('/logout')
 def logout():
@@ -479,7 +439,7 @@ def admin_sifre_durumu():
 @app.route('/takvim')
 @login_required
 def takvim():
-    return render_template('takvim.html', isim=session['isim'], admin=session['admin'], studyolar=STUDYOLAR)
+    return render_template('takvim.html', isim=session['isim'], admin=session['admin'])
 
 @app.route('/pratik')
 @login_required
@@ -498,54 +458,275 @@ def admin_panel():
         return redirect(url_for('takvim'))
     return render_template('admin.html', isim=session['isim'], admin=session['admin'], kullanicilar=KULLANICILAR)
 
-@app.route('/api/slotlar/<studyo>/<alan>/<tarih>')
+# ==================== GÖREV TAKİP ====================
+
+@app.route('/gorev-takip')
 @login_required
-def get_slotlar(studyo, alan, tarih):
+def gorev_takip():
+    telefon = session['telefon']
+    if telefon not in GOREV_ERISIM:
+        return redirect(url_for('takvim'))
+    
+    rol = GOREV_ERISIM[telefon]
+    return render_template('gorev_takip.html', isim=session['isim'], rol=rol)
+
+@app.route('/api/gorevler')
+@login_required
+def api_gorevler():
+    telefon = session['telefon']
+    if telefon not in GOREV_ERISIM:
+        return jsonify({'error': 'Yetkiniz yok'}), 403
+    
     try:
-        tarih_obj = datetime.strptime(tarih, '%Y-%m-%d')
-        gun = tarih_obj.weekday()
-        studyo_bilgi = STUDYOLAR.get(studyo)
-        if not studyo_bilgi:
-            return jsonify([])
-        if gun < 5:
-            saat_bilgi = studyo_bilgi['saatler']['hafta_ici']
-        else:
-            saat_bilgi = studyo_bilgi['saatler']['hafta_sonu']
-        saatler = saat_listesi_olustur(saat_bilgi['baslangic'], saat_bilgi['bitis'])
-        
         conn = get_db()
-        rows = conn.run('SELECT saat, rezerve_eden, telefon, bloklu FROM rezervasyonlar WHERE studyo = :p1 AND alan = :p2 AND tarih = :p3', p1=studyo, p2=alan, p3=tarih)
+        gorevler = conn.run('''
+            SELECT id, baslik, durum, created_at, updated_at 
+            FROM gorevler 
+            ORDER BY 
+                CASE durum 
+                    WHEN 'bekliyor' THEN 1 
+                    WHEN 'yapildi_iddia' THEN 2 
+                    WHEN 'tamamlandi' THEN 3 
+                END,
+                created_at DESC
+        ''')
+        
+        result = []
+        for g in gorevler:
+            notlar = conn.run('''
+                SELECT yazar, yazar_isim, not_text, created_at 
+                FROM gorev_notlar 
+                WHERE gorev_id = :p1 
+                ORDER BY created_at ASC
+            ''', p1=g[0])
+            
+            result.append({
+                'id': g[0],
+                'baslik': g[1],
+                'durum': g[2],
+                'tarih': g[3].strftime('%Y-%m-%d') if g[3] else '',
+                'notlar': [{
+                    'yazar': n[0],
+                    'yazar_isim': n[1],
+                    'text': n[2],
+                    'zaman': n[3].strftime('%H:%M') if n[3] else ''
+                } for n in notlar]
+            })
+        
+        conn.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/gorev-ekle', methods=['POST'])
+@login_required
+def api_gorev_ekle():
+    telefon = session['telefon']
+    if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
+        return jsonify({'error': 'Yetkiniz yok'}), 403
+    
+    data = request.json
+    baslik = data.get('baslik', '').strip()
+    
+    if not baslik:
+        return jsonify({'error': 'Görev başlığı gerekli'}), 400
+    
+    try:
+        conn = get_db()
+        conn.run('''
+            INSERT INTO gorevler (baslik, olusturan) 
+            VALUES (:p1, :p2)
+        ''', p1=baslik, p2=session['telefon'])
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/gorev-tick', methods=['POST'])
+@login_required
+def api_gorev_tick():
+    telefon = session['telefon']
+    if telefon not in GOREV_ERISIM:
+        return jsonify({'error': 'Yetkiniz yok'}), 403
+    
+    data = request.json
+    gorev_id = data.get('gorev_id')
+    
+    try:
+        conn = get_db()
+        conn.run('''
+            UPDATE gorevler 
+            SET durum = 'yapildi_iddia', updated_at = CURRENT_TIMESTAMP 
+            WHERE id = :p1
+        ''', p1=gorev_id)
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/gorev-onayla', methods=['POST'])
+@login_required
+def api_gorev_onayla():
+    telefon = session['telefon']
+    if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
+        return jsonify({'error': 'Yetkiniz yok'}), 403
+    
+    data = request.json
+    gorev_id = data.get('gorev_id')
+    
+    try:
+        conn = get_db()
+        conn.run('''
+            UPDATE gorevler 
+            SET durum = 'tamamlandi', updated_at = CURRENT_TIMESTAMP 
+            WHERE id = :p1
+        ''', p1=gorev_id)
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/gorev-reddet', methods=['POST'])
+@login_required
+def api_gorev_reddet():
+    telefon = session['telefon']
+    if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
+        return jsonify({'error': 'Yetkiniz yok'}), 403
+    
+    data = request.json
+    gorev_id = data.get('gorev_id')
+    
+    try:
+        conn = get_db()
+        conn.run('''
+            UPDATE gorevler 
+            SET durum = 'bekliyor', updated_at = CURRENT_TIMESTAMP 
+            WHERE id = :p1
+        ''', p1=gorev_id)
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/gorev-not-ekle', methods=['POST'])
+@login_required
+def api_gorev_not_ekle():
+    telefon = session['telefon']
+    if telefon not in GOREV_ERISIM:
+        return jsonify({'error': 'Yetkiniz yok'}), 403
+    
+    data = request.json
+    gorev_id = data.get('gorev_id')
+    not_text = data.get('not', '').strip()
+    
+    if not not_text:
+        return jsonify({'error': 'Not boş olamaz'}), 400
+    
+    rol = GOREV_ERISIM[telefon]
+    
+    try:
+        conn = get_db()
+        conn.run('''
+            INSERT INTO gorev_notlar (gorev_id, yazar, yazar_isim, not_text) 
+            VALUES (:p1, :p2, :p3, :p4)
+        ''', p1=gorev_id, p2=rol, p3=session['isim'], p4=not_text)
+        
+        conn.run('''
+            UPDATE gorevler SET updated_at = CURRENT_TIMESTAMP WHERE id = :p1
+        ''', p1=gorev_id)
+        
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/gorev-sil', methods=['POST'])
+@login_required
+def api_gorev_sil():
+    telefon = session['telefon']
+    if telefon not in GOREV_ERISIM or GOREV_ERISIM[telefon] != 'admin':
+        return jsonify({'error': 'Yetkiniz yok'}), 403
+    
+    data = request.json
+    gorev_id = data.get('gorev_id')
+    
+    try:
+        conn = get_db()
+        conn.run('DELETE FROM gorev_notlar WHERE gorev_id = :p1', p1=gorev_id)
+        conn.run('DELETE FROM gorevler WHERE id = :p1', p1=gorev_id)
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== REZERVASYON API ====================
+
+def saat_listesi_olustur(baslangic, bitis):
+    saatler = []
+    bas_saat, bas_dakika = map(int, baslangic.split(':'))
+    bit_saat, bit_dakika = map(int, bitis.split(':'))
+    
+    current = bas_saat * 60 + bas_dakika
+    end = bit_saat * 60 + bit_dakika
+    
+    while current < end:
+        saat = f"{current // 60:02d}:{current % 60:02d}"
+        saatler.append(saat)
+        current += 30
+    
+    return saatler
+
+def get_gun_saatleri(studyo, tarih):
+    tarih_obj = datetime.strptime(tarih, '%Y-%m-%d') if isinstance(tarih, str) else tarih
+    gun = tarih_obj.weekday()
+    studyo_bilgi = STUDYOLAR[studyo]
+    
+    if gun < 5:  # Hafta içi
+        saat_bilgi = studyo_bilgi['saatler']['hafta_ici']
+    else:  # Hafta sonu
+        saat_bilgi = studyo_bilgi['saatler']['hafta_sonu']
+    
+    return saat_listesi_olustur(saat_bilgi['baslangic'], saat_bilgi['bitis'])
+
+@app.route('/api/studyolar')
+@login_required
+def api_studyolar():
+    return jsonify(STUDYOLAR)
+
+@app.route('/api/rezervasyonlar/<studyo>/<tarih>')
+@login_required
+def api_rezervasyonlar(studyo, tarih):
+    try:
+        conn = get_db()
+        rows = conn.run('SELECT alan, saat, rezerve_eden, telefon, bloklu FROM rezervasyonlar WHERE studyo = :p1 AND tarih = :p2', p1=studyo, p2=tarih)
         conn.close()
         
         rezervasyonlar = {}
         for row in rows:
-            rezervasyonlar[row[0]] = {'saat': row[0], 'rezerve_eden': row[1], 'telefon': row[2], 'bloklu': row[3]}
+            alan = row[0]
+            saat = row[1]
+            if alan not in rezervasyonlar:
+                rezervasyonlar[alan] = {}
+            rezervasyonlar[alan][saat] = {
+                'rezerve_eden': row[2],
+                'telefon': row[3],
+                'bloklu': row[4]
+            }
         
-        slotlar = []
-        for saat in saatler:
-            rez = rezervasyonlar.get(saat)
-            if rez:
-                if rez['bloklu']:
-                    durum = 'bloklu'
-                    kisi = None
-                    kendi_mi = False
-                else:
-                    durum = 'dolu'
-                    kisi = rez['rezerve_eden']
-                    kendi_mi = (rez['telefon'] == session['telefon'])
-            else:
-                durum = 'bos'
-                kisi = None
-                kendi_mi = False
-            slotlar.append({'saat': saat, 'durum': durum, 'kisi': kisi, 'kendi_mi': kendi_mi})
-        return jsonify(slotlar)
+        saatler = get_gun_saatleri(studyo, tarih)
+        
+        return jsonify({
+            'rezervasyonlar': rezervasyonlar,
+            'saatler': saatler,
+            'alanlar': STUDYOLAR[studyo]['alanlar']
+        })
     except Exception as e:
         print(f"Hata: {e}")
-        return jsonify([])
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/rezerve', methods=['POST'])
+@app.route('/api/rezervasyon', methods=['POST'])
 @login_required
-def rezerve():
+def api_rezervasyon():
     try:
         data = request.json
         studyo = data['studyo']
@@ -554,72 +735,61 @@ def rezerve():
         saat = data['saat']
         
         conn = get_db()
-        rows = conn.run('SELECT id FROM rezervasyonlar WHERE studyo = :p1 AND alan = :p2 AND tarih = :p3 AND saat = :p4', p1=studyo, p2=alan, p3=tarih, p4=saat)
+        
+        # Önce mevcut durumu kontrol et
+        rows = conn.run('SELECT rezerve_eden, bloklu FROM rezervasyonlar WHERE studyo = :p1 AND alan = :p2 AND tarih = :p3 AND saat = :p4', 
+                       p1=studyo, p2=alan, p3=tarih, p4=saat)
         
         if rows:
-            conn.close()
-            return jsonify({'success': False, 'error': 'Bu slot zaten dolu'})
+            # Kayıt var
+            mevcut = rows[0]
+            if mevcut[1]:  # Bloklu
+                conn.close()
+                return jsonify({'success': False, 'error': 'Bu slot bloklanmış'})
+            elif mevcut[0]:
+                # Zaten rezerve edilmiş
+                if mevcut[0] == session['isim']:
+                    # Kendi rezervasyonunu iptal et
+                    conn.run('DELETE FROM rezervasyonlar WHERE studyo = :p1 AND alan = :p2 AND tarih = :p3 AND saat = :p4', 
+                            p1=studyo, p2=alan, p3=tarih, p4=saat)
+                    conn.run('INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (:p1, :p2, :p3, :p4, :p5, :p6)',
+                            p1=session['isim'], p2='iptal', p3=studyo, p4=alan, p5=tarih, p6=saat)
+                    conn.close()
+                    return jsonify({'success': True, 'mesaj': 'Rezervasyon iptal edildi'})
+                else:
+                    conn.close()
+                    return jsonify({'success': False, 'error': f"Bu slot {mevcut[0]} tarafından rezerve edilmiş"})
         
-        conn.run('INSERT INTO rezervasyonlar (studyo, alan, tarih, saat, rezerve_eden, telefon) VALUES (:p1, :p2, :p3, :p4, :p5, :p6)', p1=studyo, p2=alan, p3=tarih, p4=saat, p5=session['isim'], p6=session['telefon'])
+        # Yeni rezervasyon yap
+        try:
+            conn.run('INSERT INTO rezervasyonlar (studyo, alan, tarih, saat, rezerve_eden, telefon) VALUES (:p1, :p2, :p3, :p4, :p5, :p6)',
+                    p1=studyo, p2=alan, p3=tarih, p4=saat, p5=session['isim'], p6=session['telefon'])
+        except:
+            conn.run('UPDATE rezervasyonlar SET rezerve_eden = :p1, telefon = :p2 WHERE studyo = :p3 AND alan = :p4 AND tarih = :p5 AND saat = :p6',
+                    p1=session['isim'], p2=session['telefon'], p3=studyo, p4=alan, p5=tarih, p6=saat)
         
-        studyo_isim = STUDYOLAR[studyo]['isim']
-        conn.run('INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (:p1, :p2, :p3, :p4, :p5, :p6)', p1=session['isim'], p2='rezerve', p3=studyo_isim, p4=alan, p5=tarih, p6=saat)
+        conn.run('INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (:p1, :p2, :p3, :p4, :p5, :p6)',
+                p1=session['isim'], p2='rezervasyon', p3=studyo, p4=alan, p5=tarih, p6=saat)
         conn.close()
         
-        return jsonify({'success': True, 'mesaj': 'Rezervasyon yapıldı!'})
-    except Exception as e:
-        print(f"Hata: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/iptal', methods=['POST'])
-@login_required
-def iptal():
-    try:
-        data = request.json
-        studyo = data['studyo']
-        alan = data['alan']
-        tarih = data['tarih']
-        saat = data['saat']
-        
-        conn = get_db()
-        rows = conn.run('SELECT rezerve_eden, telefon FROM rezervasyonlar WHERE studyo = :p1 AND alan = :p2 AND tarih = :p3 AND saat = :p4', p1=studyo, p2=alan, p3=tarih, p4=saat)
-        
-        if not rows:
-            conn.close()
-            return jsonify({'success': False, 'error': 'Rezervasyon bulunamadı'})
-        
-        telefon = rows[0][1]
-        if telefon != session['telefon'] and not session.get('admin'):
-            conn.close()
-            return jsonify({'success': False, 'error': 'Bu rezervasyonu iptal edemezsiniz'})
-        
-        conn.run('DELETE FROM rezervasyonlar WHERE studyo = :p1 AND alan = :p2 AND tarih = :p3 AND saat = :p4', p1=studyo, p2=alan, p3=tarih, p4=saat)
-        
-        studyo_isim = STUDYOLAR[studyo]['isim']
-        conn.run('INSERT INTO aktiviteler (isim, islem, studyo, alan, tarih, saat) VALUES (:p1, :p2, :p3, :p4, :p5, :p6)', p1=session['isim'], p2='iptal', p3=studyo_isim, p4=alan, p5=tarih, p6=saat)
-        conn.close()
-        
-        return jsonify({'success': True, 'mesaj': 'Rezervasyon iptal edildi'})
+        return jsonify({'success': True, 'mesaj': 'Rezervasyon yapıldı'})
     except Exception as e:
         print(f"Hata: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/aktiviteler')
 @login_required
-def get_aktiviteler():
+def api_aktiviteler():
     try:
         conn = get_db()
-        rows = conn.run('SELECT isim, islem, studyo, alan, tarih, saat, created_at FROM aktiviteler ORDER BY created_at DESC LIMIT 30')
+        rows = conn.run('SELECT isim, islem, studyo, alan, tarih, saat, created_at FROM aktiviteler ORDER BY created_at DESC LIMIT 20')
         conn.close()
         
         aktiviteler = []
         for row in rows:
-            created = row[6]
+            created_at = row[6]
             now = datetime.now()
-            if isinstance(created, datetime):
-                diff = now - created
-            else:
-                diff = timedelta(seconds=0)
+            diff = now - created_at
             
             if diff.total_seconds() < 60:
                 zaman = 'Az önce'
@@ -685,7 +855,49 @@ def toplu_blok():
         print(f"Hata: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-# ==================== PRATİK ANKETİ API ====================
+# ==================== PRATİK ANKETİ ====================
+
+def anket_aktif_mi(lokasyon):
+    """Pratik anketi aktif mi kontrol et"""
+    pratik_gun = PRATIK_BILGI[lokasyon]['gun']
+    bugun = datetime.now().date()
+    bugun_gun = bugun.weekday()
+    
+    # Bu haftaki pratik gününü bul
+    gun_farki = pratik_gun - bugun_gun
+    if gun_farki < 0:
+        gun_farki += 7
+    
+    pratik_tarihi = bugun + timedelta(days=gun_farki)
+    
+    # Anket pratik gününden 5 gün önce açılır, pratik saatinde kapanır
+    anket_baslangic = pratik_tarihi - timedelta(days=5)
+    
+    return bugun >= anket_baslangic and bugun <= pratik_tarihi, pratik_tarihi
+
+def pratik_mesaji_olustur(lokasyon, evet_listesi):
+    """WhatsApp için pratik mesajı oluştur"""
+    aktif, pratik_tarihi = anket_aktif_mi(lokasyon)
+    
+    gun_isimleri = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
+    ay_isimleri = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
+                  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+    
+    tarih_str = f"{pratik_tarihi.day} {ay_isimleri[pratik_tarihi.month - 1]} {gun_isimleri[pratik_tarihi.weekday()]}"
+    
+    bilgi = PRATIK_BILGI[lokasyon]
+    
+    gorevli_listesi = list(evet_listesi)
+    if lokasyon == 'sisli':
+        gorevli_listesi = ['Uğur Altun'] + gorevli_listesi
+    
+    if gorevli_listesi:
+        gorevliler = ", ".join(gorevli_listesi)
+        mesaj = f"📅 {tarih_str}\n📍 {bilgi['yer']}\n⏰ {bilgi['saat']}\n\n👥 Pratik görevlileri: {gorevliler}."
+    else:
+        mesaj = f"📅 {tarih_str}\n📍 {bilgi['yer']}\n⏰ {bilgi['saat']}\n\n⚠️ Henüz görevli yok."
+    
+    return mesaj
 
 @app.route('/api/pratik/durum')
 @login_required
